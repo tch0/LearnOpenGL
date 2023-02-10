@@ -1,16 +1,16 @@
 [submodule "3rdparty/glfw"]
 	path = 3rdparty/glfw
-	url = git@github.com:tch0/glfw.git
+	url = https://github.com/tch0/glfw
 	branch = master
 [submodule "3rdparty/SOIL2"]
 	path = 3rdparty/SOIL2
-	url = git@github.com:tch0/SOIL2.git
+	url = https://github.com/tch0/SOIL2
 	branch = master
 [submodule "3rdparty/glm"]
 	path = 3rdparty/glm
-	url = git@github.com:tch0/glm.git
+	url = https://github.com/tch0/glm
 	branch = master
 [submodule "3rdparty/glad"]
 	path = 3rdparty/glad
-	url = git@github.com:tch0/cppglad2.git
+	url = https://github.com/tch0/cppglad2
 	branch = master
