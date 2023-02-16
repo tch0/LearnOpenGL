@@ -36,7 +36,7 @@ list(APPEND 3rdparty_libs glad glfw3 soil2)
 if (MINGW OR MSVC)
     list(APPEND essential_libs gdi32 opengl32)
 else()
-    list(APPEND essential_libs opengl32)
+    list(APPEND essential_libs GL X11 pthread dl)
 endif()
 
 target_link_libraries(test
