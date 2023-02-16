@@ -1,0 +1,14 @@
+.vscode/**
+
+# 3rdparty build dirs
+3rdparty/build/
+3rdparty/VS2022-Build/
+3rdparty/MinGW64-Build/
+
+# 3rdparty install directory
+3rdparty-install/
+
+# build dirs
+build/
+MinGW64-Build/
+VS2022-Build/
