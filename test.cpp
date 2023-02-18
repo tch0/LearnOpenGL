@@ -20,8 +20,8 @@ int main(int argc, char const *argv[])
     {
         return -1;
     }
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     window = glfwCreateWindow(1920, 1080, "hello, world!", NULL, NULL);
     if (!window)
     {
