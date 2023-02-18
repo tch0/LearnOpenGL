@@ -16,12 +16,15 @@ void display(GLFWwindow* window, double currentTime)
 int main(int argc, char const *argv[])
 {
     GLFWwindow* window;
+    // init glfw
     if (!glfwInit())
     {
         return -1;
     }
+    // OpenGL compatibility
     // glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    // create window
     window = glfwCreateWindow(1920, 1080, "hello, world!", NULL, NULL);
     if (!window)
     {
@@ -29,12 +32,15 @@ int main(int argc, char const *argv[])
         return -1;
     }
     glfwMakeContextCurrent(window);
+    // init glad
     int version = gladLoadGL(glfwGetProcAddress);
     if (version == 0)
     {
         glfwTerminate();
         return -1;
     }
+    glfwSwapInterval(1);
+    // render loop
     while (!glfwWindowShouldClose(window))
     {
         display(window, glfwGetTime());
