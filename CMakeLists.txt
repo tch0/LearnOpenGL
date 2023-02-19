@@ -18,10 +18,6 @@ target_compile_options(general_cxx_compiler_flags INTERFACE
     "$<${gcc_like_cxx}:$<BUILD_INTERFACE:-Wall;-Wextra;-Wshadow;-pedantic-errors;-Wformat=2;-Wno-unused-parameter>>"
     "$<${msvc_cxx}:$<BUILD_INTERFACE:/W3>>"
 )
-# link options
-target_link_options(general_cxx_compiler_flags INTERFACE
-    "$<${msvc_cxx}:$<BUILD_INTERFACE:/NODEFAULTLIB:msvcrt.lib>>"
-)
 
 # 3rd-party libraries:
 #       static library: glfw glad soil2
@@ -46,6 +42,16 @@ function(opengl_instance target)
         PUBLIC
             ${3rdparty_libs}
             ${essential_libs}
+    )
+endfunction()
+
+# copy glsl sources used by executable to its corresponding binary output directory after build target.
+function(copy_glsl_sources_after_build_target target sources)
+    set(sources ${ARGV})
+    list(POP_FRONT sources)
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${target}> ${sources}
+        COMMAND_EXPAND_LISTS
     )
 endfunction()
 
