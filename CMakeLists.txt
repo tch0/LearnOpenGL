@@ -19,6 +19,9 @@ target_compile_options(general_cxx_compiler_flags INTERFACE
     "$<${msvc_cxx}:$<BUILD_INTERFACE:/W3>>"
 )
 
+# common utility library for all programs
+add_subdirectory(Utils)
+
 # 3rd-party libraries:
 #       static library: glfw glad soil2
 #       header only: glm
@@ -42,6 +45,7 @@ function(opengl_instance target)
         PUBLIC
             ${3rdparty_libs}
             ${essential_libs}
+            Utils
     )
 endfunction()
 
