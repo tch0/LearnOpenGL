@@ -84,8 +84,8 @@ std::string readShaderSource(const char* filePath)
 // paint a white pixel point
 GLuint createShaderProgram()
 {
-    std::string vertexShaderStr = readShaderSource("02Vertex.glsl");
-    std::string fragShaderStr = readShaderSource("02Fragment.glsl");
+    std::string vertexShaderStr = readShaderSource("03Vertex.glsl");
+    std::string fragShaderStr = readShaderSource("03Fragment.glsl"); 
     // vertex shader will called by every vertex
     const char* vshaderSource = vertexShaderStr.c_str();
     // fragment shader will give the pixels color
@@ -150,13 +150,34 @@ void init(GLFWwindow* window)
     glBindVertexArray(vao[0]);
 }
 
+float x = 0.0f;
+float inc = 0.01f;
+
 void display(GLFWwindow* window, double currentTime)
 {
+    // clear background to black during every rendering
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     // load program to GPU, not run program
     glUseProgram(renderingProgram);
+
+    // move the triangle back and forth
+    x += inc;
+    if (x > 1.0f)
+    {
+        inc = -0.01f;
+    }
+    else if (x < -1.0f)
+    {
+        inc = 0.01f;
+    }
+    GLuint offsetLoc = glGetUniformLocation(renderingProgram, "offset"); // get offset pointer
+    glProgramUniform1f(renderingProgram, offsetLoc, x); // pass x to offset, it can be accessed in vertex shader
     // start rendering pipeline
-    glDrawArrays(GL_POINTS, 0, 1);
-    glPointSize(30.0f);
+    glDrawArrays(GL_TRIANGLES, 0, 3); // 3 points for triangle
+
 }
 
 int main(int argc, char const *argv[])
