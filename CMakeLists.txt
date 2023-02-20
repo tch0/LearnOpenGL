@@ -50,7 +50,7 @@ function(opengl_instance target)
 endfunction()
 
 # copy glsl sources used by executable to its corresponding binary output directory after build target.
-function(copy_glsl_sources_after_build_target target sources)
+function(copy_resources_after_build_target target sources)
     set(sources ${ARGV})
     list(POP_FRONT sources)
     add_custom_command(TARGET ${target} POST_BUILD
@@ -61,3 +61,4 @@ endfunction()
 
 # examples
 add_subdirectory(02OpenGLPipeline)
+add_subdirectory(03Mathematics)

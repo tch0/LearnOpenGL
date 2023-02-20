@@ -1,4 +1,4 @@
-.vscode/**
+.vscode/
 
 # 3rdparty build dirs
 3rdparty/build/
