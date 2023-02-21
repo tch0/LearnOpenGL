@@ -62,3 +62,4 @@ endfunction()
 # examples
 add_subdirectory(02OpenGLPipeline)
 add_subdirectory(03Mathematics)
+add_subdirectory(04Manage3dGraphicsData)
