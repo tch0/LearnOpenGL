@@ -9,15 +9,17 @@
 #include <cassert>
 #include <string>
 #include <fstream>
+#include <stack>
 #include <Utils.h>
 
-// render multiple obejcts, use multiple vertex array buffer, multiple draw calls
+// render a simple solar sytem: include the sun, the planet, the moon
+// the planet is rotating around the sun, the moon is rotating around the planet.
+// they are all self-rotating.
 
 #define numVAOs 1
 #define numVBOs 2
 
 float cameraX, cameraY, cameraZ;
-float cubeLocX, cubeLocY, cubeLocZ;
 float pyrLocX, pyrLocY, pyrLocZ;
 GLuint renderingProgram;
 GLuint vao[numVAOs];
@@ -52,7 +54,7 @@ void setupVertices()
          1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  1.0f,  0.0f,  // back
         -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  // left
         -1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  // bottom: left-front half
-        -1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f   // bottom: right-back half
+        -1.0f, -1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f   // bottom: right-back half
     };
     glGenVertexArrays(1, vao);
     glBindVertexArray(vao[0]);
@@ -66,22 +68,39 @@ void setupVertices()
 
 void init(GLFWwindow* window)
 {
-    renderingProgram = Utils::createShaderProgram("03Vertex.glsl", "03Fragment.glsl");
+    renderingProgram = Utils::createShaderProgram("04Vertex.glsl", "04Fragment.glsl");
     cameraX = 0.0f;
-    cameraY = 0.0f;
+    cameraY = 8.0f;
     cameraZ = 8.0f;
     
-    cubeLocX = 0.0f;
-    cubeLocY = -2.0f; // under the x-z plane
-    cubeLocZ = 0.0f;
-    
-    pyrLocX = 1.0f;
-    pyrLocY = 2.0f;
+    // pyramid
+    pyrLocX = 0.0f;
+    pyrLocY = 0.0f;
     pyrLocZ = 0.0f;
+
     setupVertices();
+
+    // recalculate the perspective projection matrix when window size changes
+    auto calculatePerspectiveMatrix = [](GLFWwindow* w, int newWidth, int newHeight) -> void
+    {
+        aspect = float(width) / float(height);
+        glViewport(0, 0, newWidth, newHeight); // set the screen area associated with the frame buffer (aka the view port).
+        pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
+    };
+    glfwSetWindowSizeCallback(window, calculatePerspectiveMatrix);
+
+    // build the perspective proejction matrix
+    glfwGetFramebufferSize(window, &width, &height); // screen width and height
+    calculatePerspectiveMatrix(window, width, height);
+    
+    // view matrix
+    vMat = glm::rotate(glm::mat4(1.0f), glm::pi<float>()/4.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+    vMat *= glm::translate(glm::mat4(1.0f), glm::vec3(-cameraX, -cameraY, -cameraZ));
 }
 
 float angle = 0.0;
+
+std::stack<glm::mat4> mvStack;
 
 void display(GLFWwindow* window, double currentTime)
 {
@@ -97,46 +116,65 @@ void display(GLFWwindow* window, double currentTime)
     mvLoc = glGetUniformLocation(renderingProgram, "mv_matrix");
     projLoc = glGetUniformLocation(renderingProgram, "proj_matrix");
 
-    // build the perspective proejction matrix
-    glfwGetFramebufferSize(window, &width, &height); // screen width and height
-    aspect = (float)width / (float)height;
-    pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
-    
-    // build the view matrix and model matrix and model-view matrix
-    // Note that: OpenGL camera is always on (0,0,0) and facing on the -z axis, camera is not moving,
-    //            so we meed move the object on the exactly opposite direction of camera position.
-    vMat = glm::translate(glm::mat4(1.0f), glm::vec3(-cameraX, -cameraY, -cameraZ));
-    
-    // draw the cube
-    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(cubeLocX, cubeLocY, cubeLocZ)); // move the cube down for displaying.
-    mvMat = vMat * mMat; // model transformation first, then view transformation
+    // view matrix to be the bottom
+    mvStack.push(vMat);
 
-    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    // perspective projections are all the same
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    // backface culling (for efficiency)
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK); // default to GL_BACK, no need to write this line.
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(0); // enable a gneric vertex attribute array, disabled by default.
+    // draw the pyramid as the solar
+    mvStack.push(mvStack.top());
+    mvStack.top() *=  glm::translate(glm::mat4(1.0f), glm::vec3(pyrLocX, pyrLocY, pyrLocZ));
+    mvStack.push(mvStack.top());
+    mvStack.top() *= glm::rotate(glm::mat4(1.0f), float(currentTime), glm::vec3(1.0f, 0.0f, 0.0f)); // self-rotation of solar
 
-    // adjust OpenGL setting, start rendering pipeline, draw the model
-    glEnable(GL_DEPTH_TEST); // do depth testing
-    glDepthFunc(GL_LEQUAL); // pass if depth less equal of current depth, default is GL_LESS
-    glDrawArrays(GL_TRIANGLES, 0, 36); // 12 triangles, 36 points
-
-    // draw the pyramid
-    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(pyrLocX, pyrLocY, pyrLocZ));
-    mvMat = vMat * mMat;
-    
-    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]); // pyramid
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
+    glFrontFace(GL_CCW); // specify counter clock-wise as front face, the default case for glFrontFace & the usual case for models.
+    glDrawArrays(GL_TRIANGLES, 0, 18);
+    mvStack.pop();
 
-    glEnable(GL_DEPTH_TEST); // do depth testing
-    glDepthFunc(GL_LEQUAL); // pass if depth less equal of current depth, default is GL_LESS
-    glDrawArrays(GL_TRIANGLES, 0, 18); // 6 triangles, 18 points
+    // draw the cube as the planet
+    mvStack.push(mvStack.top());
+    mvStack.top() *= glm::translate(glm::mat4(1.0f),
+        glm::vec3(sin(float(currentTime)) * 4.0, 0.0f, cos(float(currentTime)) * 4.0)); // rotatation around the solar
+    mvStack.push(mvStack.top());
+    mvStack.top() *= glm::rotate(glm::mat4(1.0f), float(currentTime), glm::vec3(0.0f, 1.0f, 0.0f)); // self-rotation of planet
+
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // cube
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    glFrontFace(GL_CW); // clock-wise as front face, same for below.
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    mvStack.pop();
+
+    // draw a small cube as moon
+    mvStack.push(mvStack.top());
+    mvStack.top() *= glm::translate(glm::mat4(1.0f), 
+        glm::vec3(0.0f, sin(float(currentTime)) * 2.0f, cos(float(currentTime)) * 2.0)); // rotation around the planet
+    mvStack.push(mvStack.top());
+    mvStack.top() *= glm::rotate(glm::mat4(1.0f), float(currentTime), glm::vec3(0.0f, 0.0f, 1.0f)); // self rotation of the moon
+    mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3(0.25f, 0.25f, 0.25f)); // make the moon smaller
+    
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // cube
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // clear the matrix stack
+    while (!mvStack.empty())
+    {
+        mvStack.pop();
+    }
 }
 
 int main(int argc, char const *argv[])
@@ -151,7 +189,7 @@ int main(int argc, char const *argv[])
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     // create window
-    window = glfwCreateWindow(1920, 1080, "03MultipleModels", NULL, NULL);
+    window = glfwCreateWindow(1920, 1080, "04MatrixStack", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
