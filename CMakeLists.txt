@@ -49,7 +49,7 @@ function(opengl_instance target)
     )
 endfunction()
 
-# copy glsl sources used by executable to its corresponding binary output directory after build target.
+# copy resources(glsl files, texture files, etc.) used by executable to its corresponding binary output directory after build target.
 function(copy_resources_after_build_target target sources)
     set(sources ${ARGV})
     list(POP_FRONT sources)

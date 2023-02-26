@@ -94,8 +94,9 @@ void init(GLFWwindow* window)
     calculatePerspectiveMatrix(window, width, height);
     
     // view matrix
-    vMat = glm::rotate(glm::mat4(1.0f), glm::pi<float>()/4.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-    vMat *= glm::translate(glm::mat4(1.0f), glm::vec3(-cameraX, -cameraY, -cameraZ));
+    // vMat = glm::rotate(glm::mat4(1.0f), glm::pi<float>()/4.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+    // vMat *= glm::translate(glm::mat4(1.0f), glm::vec3(-cameraX, -cameraY, -cameraZ));
+    vMat = glm::lookAt(glm::vec3(0.0f, 8.0f, 8.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0, 1, -1));
 }
 
 float angle = 0.0;
