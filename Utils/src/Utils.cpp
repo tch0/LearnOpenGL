@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <soil2/SOIL2.h>
 
 namespace Utils
 {
@@ -123,6 +124,18 @@ GLuint createShaderProgram(const char* vertexShader, const char* fragmentShader)
         printProgramLog(vfProgram);
     }
     return vfProgram;
+}
+
+// load texture to OpenGL texture object
+GLuint loadTexture(const char* textureImagePath)
+{
+    GLuint textureId;
+    textureId = SOIL_load_OGL_texture(textureImagePath, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+    if (textureId == 0)
+    {
+        std::cout << "Utils::loadTexture: Could not find texture file!" << std::endl;
+    }
+    return textureId;
 }
 
 } // namespace Utils

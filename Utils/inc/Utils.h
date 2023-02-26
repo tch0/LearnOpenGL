@@ -18,4 +18,7 @@ std::string readShaderSource(const char* filePath);
 // create a program from vertex shader and fragment shader
 GLuint createShaderProgram(const char* vertexShader, const char* fragmentShader);
 
+// load texture to OpenGL texture object
+GLuint loadTexture(const char* textureImagePath);
+
 } // namespace Utils
