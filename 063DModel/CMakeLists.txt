@@ -16,3 +16,13 @@ copy_resources_after_build_target(02GeneratedTorus
     # textures
     ${CMAKE_CURRENT_SOURCE_DIR}/02BrickTexture.jpg
 )
+opengl_instance(03DrawModel 03DrawModel.cpp)
+copy_resources_after_build_target(03DrawModel
+    # shaders
+    ${CMAKE_CURRENT_SOURCE_DIR}/03Vertex.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/03Fragment.glsl
+    # textures
+    ${CMAKE_CURRENT_SOURCE_DIR}/03BlackWhiteGrid.jpg
+    # model files
+    ${CMAKE_CURRENT_SOURCE_DIR}/03Model.obj
+)

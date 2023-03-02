@@ -9,12 +9,12 @@ namespace Utils
 class Sphere
 {
 private:
-    int numVertices;
-    int numIndices;
-    std::vector<int> indices;
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec2> texCoords;
-    std::vector<glm::vec3> normals;
+    int m_numVertices;
+    int m_numIndices;
+    std::vector<int> m_indices;
+    std::vector<glm::vec3> m_vertices;
+    std::vector<glm::vec2> m_texCoords;
+    std::vector<glm::vec3> m_normals;
 
     void init(int);
 public:
