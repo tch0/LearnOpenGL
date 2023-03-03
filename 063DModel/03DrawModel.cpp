@@ -45,19 +45,15 @@ void setupVertices()
     glGenBuffers(numVBOs, vbo);
 
     verticesCount = vertices.size() / 3;
-    // Note: we assum and depend that glm::vec3 and glm::vec2 are tightly arranged !!
-    // if vertices data is got by getVerticesArray, use glDrawArrays !!
-    assert(sizeof(glm::vec3) == 3 * sizeof(float));
-    assert(sizeof(glm::vec2) == 2 * sizeof(float));
     // vertices
     glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
     // texture coordinates
     glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-    glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(glm::vec2), texCoords.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(float), texCoords.data(), GL_STATIC_DRAW);
     // normal coordinates
     glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), normals.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(float), normals.data(), GL_STATIC_DRAW);
 }
 
 void init(GLFWwindow* window)
