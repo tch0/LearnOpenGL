@@ -9,7 +9,7 @@ project (LearnOpenGL
 # general compiler flags, C++ standard, warnings, etc.
 add_library(general_cxx_compiler_flags INTERFACE)
 # C++ standard
-target_compile_features(general_cxx_compiler_flags INTERFACE cxx_std_11)
+target_compile_features(general_cxx_compiler_flags INTERFACE cxx_std_20)
 # for different toolchain
 set(gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
 set(msvc_cxx "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
@@ -43,9 +43,9 @@ function(opengl_instance target)
         PRIVATE
             general_cxx_compiler_flags
         PUBLIC
+            Utils # the link order matters on gcc, Utils depends on 3rdparty libraries, so Utils must be ahead of 3rd parties
             ${3rdparty_libs}
             ${essential_libs}
-            Utils
     )
 endfunction()
 
@@ -65,3 +65,4 @@ add_subdirectory(03Mathematics)
 add_subdirectory(04Manage3dGraphicsData)
 add_subdirectory(05Texture)
 add_subdirectory(063DModel)
+add_subdirectory(07Lighting)

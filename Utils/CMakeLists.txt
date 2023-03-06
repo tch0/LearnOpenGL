@@ -9,6 +9,7 @@
 #       Torus
 #   model import utlity:
 #       OBJ file reader
+#   a simple renderer implementation
 
 file(GLOB utils_sources src/*.cpp)
 add_library(Utils STATIC ${utils_sources})

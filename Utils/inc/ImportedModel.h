@@ -2,11 +2,12 @@
 
 #include <glm/glm.hpp>
 #include <vector>
+#include "Model.h"
 
 namespace Utils
 {
 
-class ImportedModel
+class ImportedModel : public Model
 {
 private:
     std::vector<float> m_vertices;
@@ -15,9 +16,12 @@ private:
 public: 
     ImportedModel(const char* filePath);
     // match with glDrawArrays
-    std::vector<float> getVerticesArray();
-    std::vector<float> getTexCoordsArray();
-    std::vector<float> getNormalsArray();
+    virtual bool supplyVertices() override;
+    virtual bool supplyTexCoords() override;
+    virtual bool supplyNormals() override;
+    virtual std::vector<float> getVerticesArray() override;
+    virtual std::vector<float> getTexCoordsArray() override;
+    virtual std::vector<float> getNormalsArray() override;
 };
 
 

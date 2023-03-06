@@ -48,6 +48,21 @@ void Sphere::init(int prec)
     }
 }
 
+bool Sphere::supplyVertices()
+{
+    return true;
+}
+
+bool Sphere::supplyTexCoords()
+{
+    return true;
+}
+
+bool Sphere::supplyNormals()
+{
+    return true;
+}
+
 std::vector<float> Sphere::getVerticesArray()
 {
     std::vector<float> verticesVec;
@@ -84,6 +99,11 @@ std::vector<float> Sphere::getNormalsArray()
         normalsVec.push_back(m_normals[m_indices[i]].z);
     }
     return normalsVec;
+}
+
+bool Sphere::supplyIndices()
+{
+    return true;
 }
 
 std::vector<int> Sphere::getIndices()

@@ -7,6 +7,21 @@
 namespace Utils
 {
 
+
+bool ImportedModel::supplyVertices()
+{
+    return true;
+}
+
+bool ImportedModel::supplyTexCoords()
+{
+    return true;
+}
+bool ImportedModel::supplyNormals()
+{
+    return true;
+}
+
 ImportedModel::ImportedModel(const char* filePath)
 {
     std::vector<glm::vec3> vertices;

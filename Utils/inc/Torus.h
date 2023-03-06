@@ -2,11 +2,12 @@
 #include <vector>
 #include <cmath>
 #include <glm/glm.hpp>
+#include "Model.h"
 
 namespace Utils
 {
 
-class Torus
+class Torus : public Model
 {
 private:
     float m_circleRadius;
@@ -24,19 +25,24 @@ private:
 public:
     Torus(float cRadius, float rRadius, int precision = 48);
     // match with glDrawArrays
-    std::vector<float> getVerticesArray();
-    std::vector<float> getTexCoordsArray();
-    std::vector<float> getNormalsArray();
-    std::vector<float> getSTangentsArray();
-    std::vector<float> getTTangentsArray();
+    virtual bool supplyVertices() override;
+    virtual bool supplyTexCoords() override;
+    virtual bool supplyNormals() override;
+    virtual bool supplyTangents() override;
+    virtual std::vector<float> getVerticesArray() override;
+    virtual std::vector<float> getTexCoordsArray() override;
+    virtual std::vector<float> getNormalsArray() override;
+    virtual std::vector<float> getSTangentsArray() override;
+    virtual std::vector<float> getTTangentsArray() override;
 
     // match with glDrawElements
-    std::vector<int> getIndices();
-    std::vector<glm::vec3> getVertices();
-    std::vector<glm::vec2> getTexCoords();
-    std::vector<glm::vec3> getNormals();
-    std::vector<glm::vec3> getSTangents();
-    std::vector<glm::vec3> getTTangents();
+    virtual bool supplyIndices() override;
+    virtual std::vector<int> getIndices() override;
+    virtual std::vector<glm::vec3> getVertices() override;
+    virtual std::vector<glm::vec2> getTexCoords() override;
+    virtual std::vector<glm::vec3> getNormals() override;
+    virtual std::vector<glm::vec3> getSTangents() override;
+    virtual std::vector<glm::vec3> getTTangents() override;
 };
 
 } // namespace Utils

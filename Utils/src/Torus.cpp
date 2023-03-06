@@ -78,6 +78,26 @@ void Torus::init(int prec)
     }
 }
 
+bool Torus::supplyVertices()
+{
+    return true;
+}
+
+bool Torus::supplyTexCoords()
+{
+    return true;
+}
+
+bool Torus::supplyNormals()
+{
+    return true;
+}
+
+bool Torus::supplyTangents()
+{
+    return true;
+}
+
 std::vector<float> Torus::getVerticesArray()
 {
     std::vector<float> verticesVec;
@@ -140,6 +160,11 @@ std::vector<float> Torus::getTTangentsArray()
         tangentsVec.push_back(m_tTangents[m_indices[i]].z);
     }
     return tangentsVec;
+}
+
+bool Torus::supplyIndices()
+{
+    return true;
 }
 
 std::vector<int> Torus::getIndices()

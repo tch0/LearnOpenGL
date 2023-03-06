@@ -72,23 +72,24 @@ std::string readShaderSource(const char* filePath)
     return content;
 }
 
-// create a program from shaders
-GLuint createShaderProgram(const char* vertexShader, const char* fragmentShader)
+// create a program from shaders files
+GLuint createShaderProgram(const char* vertexShaderFile, const char* fragmentShaderFile)
 {
-    std::string vertexShaderStr = readShaderSource(vertexShader);
-    std::string fragShaderStr = readShaderSource(fragmentShader);
-    // vertex shader will called by every vertex
-    const char* vshaderSource = vertexShaderStr.c_str();
-    // fragment shader will give the pixels color
-    const char* fshaderSource = fragShaderStr.c_str();
+    std::string vertexShaderStr = readShaderSource(vertexShaderFile);
+    std::string fragShaderStr = readShaderSource(fragmentShaderFile);
+    return createShaderProgramFromSource(vertexShaderStr.c_str(), fragShaderStr.c_str());
+}
 
+// create a shader program from shader sources
+GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader)
+{
     // create empty shader object
     GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
     
     // load glsl source to shader object
-    glShaderSource(vShader, 1, &vshaderSource, NULL);
-    glShaderSource(fShader, 1, &fshaderSource, NULL);
+    glShaderSource(vShader, 1, &vertexShader, NULL);
+    glShaderSource(fShader, 1, &fragmentShader, NULL);
 
     // compiler shader obejct
     glCompileShader(vShader);
