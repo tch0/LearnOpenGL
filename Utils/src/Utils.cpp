@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <soil2/SOIL2.h>
+#include <Logger.h>
 
 namespace Utils
 {
@@ -19,7 +20,7 @@ void printShaderLog(GLuint shader)
     {
         log = new char[len];
         glGetShaderInfoLog(shader, len, &chWritten, log);
-        std::cout << "Shader Info Log: " << log << std::endl;
+        Logger::globalLogger().info("Shader Info Log: "s + log);
         delete[] log;
     }
 }
@@ -34,7 +35,7 @@ void printProgramLog(GLuint program)
     {
         log = new char[len];
         glGetProgramInfoLog(program, len, &chWritten, log);
-        std::cout << "Shader Info Log: " << log << std::endl;
+        Logger::globalLogger().info("Shader Info Log: \n"s + log);
         delete[] log;
     }
 }
@@ -45,7 +46,7 @@ bool checkOpenGLError()
     GLenum glErr = glGetError();
     while (glErr != GL_NO_ERROR)
     {
-        std::cout << "glError: " << glErr << std::endl;
+        Logger::globalLogger().warning("glError: "s + std::to_string(glErr));
         foundError = true;
         glErr = glGetError();
     }
@@ -59,7 +60,7 @@ std::string readShaderSource(const char* filePath)
     std::ifstream fin(filePath);
     if (!fin.is_open())
     {
-        std::cout << "Shader file " << filePath << " does not exist!" << std::endl;
+        Logger::globalLogger().warning("Shader file "s + filePath + " does not exist!"s);
         return content;
     }
     std::string line;
@@ -98,7 +99,7 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     glGetShaderiv(vShader, GL_COMPILE_STATUS, &vertCompiled);
     if (vertCompiled != GL_TRUE)
     {
-        std::cout << "Vertex shader compilation failed!" << std::endl;
+        Logger::globalLogger().warning("Vertex shader compilation failed!");
         printShaderLog(vShader);
     }
     glCompileShader(fShader);
@@ -107,7 +108,7 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     glGetShaderiv(fShader, GL_COMPILE_STATUS, &fragCompiled);
     if (fragCompiled != GL_TRUE)
     {
-        std::cout << "Fragment shader compilation failed!" << std::endl;
+        Logger::globalLogger().warning("Fragment shader compilation failed!");
         printShaderLog(fShader);
     }
     
@@ -121,7 +122,7 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     glGetProgramiv(vfProgram, GL_LINK_STATUS, &linkStatus);
     if (linkStatus != GL_TRUE)
     {
-        std::cout << "Linking failed!" << std::endl;
+        Logger::globalLogger().warning("Linking failed!");
         printProgramLog(vfProgram);
     }
     return vfProgram;
@@ -134,7 +135,7 @@ GLuint loadTexture(const char* textureImagePath)
     textureId = SOIL_load_OGL_texture(textureImagePath, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
     if (textureId == 0)
     {
-        std::cout << "Utils::loadTexture: Could not find texture file!" << std::endl;
+        Logger::globalLogger().warning("Utils::loadTexture: Could not find texture file!");
     }
     return textureId;
 }

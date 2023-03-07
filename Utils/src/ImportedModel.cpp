@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <Logger.h>
 
 namespace Utils
 {
@@ -31,7 +32,7 @@ ImportedModel::ImportedModel(const char* filePath)
     std::ifstream fin(filePath);
     if (!fin.is_open())
     {
-        std::cout << "Model file " << filePath << " does not exist!" << std::endl;
+        Logger::globalLogger().warning("Model file "s + filePath + " does not exist!"s);
         return;
     }
     std::string line;
@@ -77,7 +78,7 @@ ImportedModel::ImportedModel(const char* filePath)
 
                 if (v.empty() || t.empty() || n.empty())
                 {
-                    std::cout << "Object file " << filePath << " parse error: none of vertex/texture coordinate/normal could be empty." << std::endl;
+                    Logger::globalLogger().warning("Object file "s + filePath + " parse error: none of vertex/texture coordinate/normal could be empty."s);
                     return;
                 }
 
