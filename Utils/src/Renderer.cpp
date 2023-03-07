@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <iostream>
+#include <utility>
 #include "Utils.h"
 
 namespace Utils
@@ -19,7 +20,7 @@ out vec4 axisColor;
 void main(void)
 {
     gl_Position = projMatrix * mvMatrix * vec4(position, 1.0);
-    axisColor = vec4(position, 1.0) / (axisLength * 2.0); // value at [-0.25, 0.25]
+    axisColor = vec4(position, 1.0) / (axisLength * 2.0); // value in [-0.25, 0.25]
     if (axisColor.x != 0.0)
     {
         axisColor.x += 0.75;
@@ -184,15 +185,18 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     m_TextureShaderProgram = createShaderProgramFromSource(textureVertexShader, textureFragmentShader);
     // m_LightingShderProgram = createShaderProgramFromSource(lightingVertexShader, lightingFragmentShader);
 
+    // init window attributes
+    s_WindowAttrs.insert(std::make_pair(m_pWindow, WindowAttributes{}));
+
     // projection matrix
     // recalculate the perspective projection matrix when window size changes
-    auto calculatePerspectiveMatrix = [](GLFWwindow* w, int newWidth, int newHeight) -> void
+    auto calculatePerspectiveMatrix = [](GLFWwindow* pWindow, int newWidth, int newHeight) -> void
     {
         if (newWidth != 0 && newHeight != 0) // when minimization
         {
             float aspect = float(newWidth) / float(newHeight);
             glViewport(0, 0, newWidth, newHeight); // set the screen area associated with the frame buffer (aka the view port).
-            m_ProjMatrix = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
+            getProjMatrix(pWindow) = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
         }
     };
     glfwSetWindowSizeCallback(m_pWindow, calculatePerspectiveMatrix);
@@ -203,16 +207,19 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     // scroll call back, change view matrix (only the eye position)
     auto scrollCallback = [](GLFWwindow* pWindow, double xoffset, double yoffset) -> void
     {
+        glm::vec3& eyeLocation = getEyeLocation(pWindow);
+        glm::vec3& objectLocation = getObjectLocation(pWindow);
+
         int offset = int(yoffset);
-        glm::vec3 dir = glm::normalize(m_EyeLocation - m_ObjectLocation);
+        glm::vec3 dir = glm::normalize(eyeLocation - objectLocation);
         while (offset >= 1)
         {
-            m_EyeLocation = (m_EyeLocation - m_ObjectLocation) * 0.8f + m_ObjectLocation;
+            eyeLocation = (eyeLocation - objectLocation) * 0.8f + objectLocation;
             offset -= 1;
         }
         while (offset <= -1)
         {
-            m_EyeLocation = (m_EyeLocation - m_ObjectLocation) * 1.25f + m_ObjectLocation;
+            eyeLocation = (eyeLocation - objectLocation) * 1.25f + objectLocation;
             offset += 1;
         }
     };
@@ -223,11 +230,11 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     {
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
         {
-            m_bHoldLeftMouseButton = true;
+            getHoldLeftMouseButton(pWindow) = true;
         }
         else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
         {
-            m_bHoldLeftMouseButton = false;
+            getHoldLeftMouseButton(pWindow) = false;
         }
     };
     glfwSetMouseButtonCallback(m_pWindow, mouseButtonInputCallback);
@@ -236,8 +243,8 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     // view matrix will be updated in every frame for efficiency
     auto cursorPositionCallback = [](GLFWwindow* pWindow, double xpos, double ypos)
     {
-        m_CursorPosX = int(xpos);
-        m_CursorPosY = int(ypos);
+        getCursorPosX(pWindow) = int(xpos);
+        getCursorPosY(pWindow) = int(ypos);
     };
     glfwSetCursorPosCallback(m_pWindow, cursorPositionCallback);
 
@@ -411,34 +418,37 @@ void Renderer::setTexture(int modelIndex, GLuint textureId)
 // keep y axis always be vertical in screen pixels, so use y-axis as x rotation axis, not up vector.
 void Renderer::updateViewArgsAccordingToCursorPos()
 {
-    if (m_bHoldLeftMouseButton)
+    if (getHoldLeftMouseButton(m_pWindow))
     {
-        int deltaX = m_CursorPosX - m_LastCursorPosX;
-        int deltaY = m_CursorPosY - m_LastCursorPosY;
+        int deltaX = getCursorPosX(m_pWindow) - getLastCursorPosX(m_pWindow);
+        int deltaY = getCursorPosY(m_pWindow) - getLastCursorPosY(m_pWindow);
         float xRotationAngle = -2 * glm::pi<float>() / 1080.0f * deltaX;
         float yRotationAngle = 2 * glm::pi<float>() / 1080.0f * deltaY;
+        glm::vec3& eyeLocation = getEyeLocation(m_pWindow);
+        glm::vec3& objectLocation = getObjectLocation(m_pWindow);
+        glm::vec3& upVector = getUpVector(m_pWindow);
         if (deltaX != 0)
         {
-            auto dotRes = glm::dot(m_UpVector, glm::vec3(0.0f, 1.0f, 0.0f));
+            auto dotRes = glm::dot(upVector, glm::vec3(0.0f, 1.0f, 0.0f));
             if (dotRes < 0) // > 90 degrees
             {
                 xRotationAngle = -xRotationAngle;
             }
             // the rotation axis of X is y-axis, this is the key point!
             glm::mat4 rotationMat = glm::rotate(glm::mat4(1.0f), xRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-            m_UpVector = rotationMat * glm::vec4(m_UpVector, 1.0f);
-            m_EyeLocation = glm::vec3(rotationMat * glm::vec4(m_EyeLocation - m_ObjectLocation, 1.0f)) + m_ObjectLocation;
+            upVector = rotationMat * glm::vec4(upVector, 1.0f);
+            eyeLocation = glm::vec3(rotationMat * glm::vec4(eyeLocation - objectLocation, 1.0f)) + objectLocation;
         }
         if (deltaY != 0)
         {
             // the rotation axis of Y is cross(Eye - Object, Up)
-            glm::mat4 rotationMat = glm::rotate(glm::mat4(1.0f), yRotationAngle, glm::cross(m_EyeLocation - m_ObjectLocation, m_UpVector));
-            m_UpVector = rotationMat * glm::vec4(m_UpVector, 1.0f);
-            m_EyeLocation = glm::vec3(rotationMat * glm::vec4(m_EyeLocation - m_ObjectLocation, 1.0f)) + m_ObjectLocation;
+            glm::mat4 rotationMat = glm::rotate(glm::mat4(1.0f), yRotationAngle, glm::cross(eyeLocation - objectLocation, upVector));
+            upVector = rotationMat * glm::vec4(upVector, 1.0f);
+            eyeLocation = glm::vec3(rotationMat * glm::vec4(eyeLocation - objectLocation, 1.0f)) + objectLocation;
         }
     }
-    m_LastCursorPosX = m_CursorPosX;
-    m_LastCursorPosY = m_CursorPosY;
+    getLastCursorPosX(m_pWindow) = getCursorPosX(m_pWindow);
+    getLastCursorPosY(m_pWindow) = getCursorPosY(m_pWindow);
 }
 
 void Renderer::drawAxises()
@@ -450,7 +460,7 @@ void Renderer::drawAxises()
         glDepthFunc(GL_LEQUAL);
 
         m_ModelMatrix = glm::mat4(1.0f);
-        m_ViewMatrix = glm::lookAt(m_EyeLocation, m_ObjectLocation, m_UpVector);
+        m_ViewMatrix = glm::lookAt(getEyeLocation(m_pWindow), getObjectLocation(m_pWindow), getUpVector(m_pWindow));
         m_ModelViewMatrix = m_ViewMatrix * m_ModelMatrix;
 
         GLuint lenLoc = glGetUniformLocation(m_AxisesShaderProgram, "axisLength");
@@ -458,7 +468,7 @@ void Renderer::drawAxises()
         GLuint projLoc = glGetUniformLocation(m_AxisesShaderProgram, "projMatrix");
         glUniform1f(lenLoc, m_AxisLength);
         glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(m_ModelViewMatrix));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(m_ProjMatrix));
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(getProjMatrix(m_pWindow)));
 
         glBindBuffer(GL_ARRAY_BUFFER, m_AxisesVbo);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -552,7 +562,7 @@ void Renderer::display(float currentTime)
             m_ModelMatrix = glm::rotate(m_ModelMatrix, currentTime * m_Models[i].rotationRate, m_Models[i].rotationAxis);
         }
         // view matrix
-        m_ViewMatrix = glm::lookAt(m_EyeLocation, m_ObjectLocation, m_UpVector);
+        m_ViewMatrix = glm::lookAt(getEyeLocation(m_pWindow), getObjectLocation(m_pWindow), getUpVector(m_pWindow));
 
         // model-view matrix
         m_ModelViewMatrix = m_ViewMatrix * m_ModelMatrix;
@@ -560,7 +570,7 @@ void Renderer::display(float currentTime)
         GLuint mvLoc = glGetUniformLocation(program, "mvMatrix");
         GLuint projLoc = glGetUniformLocation(program, "projMatrix");
         glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(m_ModelViewMatrix));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(m_ProjMatrix));
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(getProjMatrix(m_pWindow)));
 
         // input color for pure color shaders
         if (style == PureColorPoints || style == PureColorLineStrip || style == PureColorLines || style == PureColorTriangles)

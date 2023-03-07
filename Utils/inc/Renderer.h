@@ -7,6 +7,7 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 #include "Material.h"
 #include "Model.h"
 
@@ -30,6 +31,7 @@ public:
         LightingMaterial,           // support lighting, render to specific material
         LightingTexture             // combine lighting with texture
     };
+private:
     struct ModelAttributes
     {
         std::shared_ptr<Model> spModel = nullptr;
@@ -49,6 +51,34 @@ public:
         GLuint sTanVbo;
         GLuint tTanVbo;
     };
+    // attributes that every window needs one copy
+    // workaround for variables that need to be visited in call back function, they must be static, so save them in static hashtable for every window.
+    struct WindowAttributes
+    {
+        // view matrix parameters
+        glm::vec3 m_EyeLocation = glm::vec3(0.0f, 10.0f, 10.0f);
+        glm::vec3 m_ObjectLocation = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 m_UpVector = glm::vec3(0.0f, 1.0f, -1.0f);
+        // projection matrix
+        glm::mat4 m_ProjMatrix = glm::mat4(1.0f);
+        // mouse input variables
+        bool m_bHoldLeftMouseButton = false;
+        int m_CursorPosX = 0;
+        int m_CursorPosY = 0;
+        int m_LastCursorPosX = 0;
+        int m_LastCursorPosY = 0;
+    };
+    inline static std::unordered_map<GLFWwindow*, WindowAttributes> s_WindowAttrs;
+    // get window attributes of this window, all inline
+    static glm::vec3& getEyeLocation(GLFWwindow* w) { return s_WindowAttrs[w].m_EyeLocation; }
+    static glm::vec3& getObjectLocation(GLFWwindow* w) { return s_WindowAttrs[w].m_ObjectLocation; }
+    static glm::vec3& getUpVector(GLFWwindow* w) { return s_WindowAttrs[w].m_UpVector; }
+    static glm::mat4& getProjMatrix(GLFWwindow* w) { return s_WindowAttrs[w].m_ProjMatrix; }
+    static bool& getHoldLeftMouseButton(GLFWwindow* w) { return s_WindowAttrs[w].m_bHoldLeftMouseButton; }
+    static int& getCursorPosX(GLFWwindow* w) { return s_WindowAttrs[w].m_CursorPosX; }
+    static int& getCursorPosY(GLFWwindow* w) { return s_WindowAttrs[w].m_CursorPosY; }
+    static int& getLastCursorPosX(GLFWwindow* w) { return s_WindowAttrs[w].m_LastCursorPosX; }
+    static int& getLastCursorPosY(GLFWwindow* w) { return s_WindowAttrs[w].m_LastCursorPosY; }
 private:
     // window
     GLFWwindow* m_pWindow = nullptr;
@@ -60,31 +90,18 @@ private:
     GLenum m_FrontFace = GL_CCW;
     // models
     std::vector<ModelAttributes> m_Models;
-    // view matrix parameters
-    inline static glm::vec3 m_EyeLocation = glm::vec3(0.0f, 10.0f, 10.0f);
-    inline static glm::vec3 m_ObjectLocation = glm::vec3(0.0f, 0.0f, 0.0f);
-    inline static glm::vec3 m_UpVector = glm::vec3(0.0f, 1.0f, -1.0f);
     // matrices
     glm::mat4 m_ModelMatrix;
     glm::mat4 m_ViewMatrix;
     glm::mat4 m_ModelViewMatrix;
-    inline static glm::mat4 m_ProjMatrix;
     // vao 
     std::vector<GLuint> m_VaoVec;
-    // vbos
-    std::vector<GLuint> m_VboVec;
     // predefined rendering programs
     GLuint m_AxisesShaderProgram;
     GLuint m_PureColorShaderProgram;
     GLuint m_VaryingColorShaderProgram;
     GLuint m_TextureShaderProgram;
     GLuint m_LightingShderProgram;
-    // mouse input vaiables
-    inline static bool m_bHoldLeftMouseButton = false;
-    inline static int m_CursorPosX = 0;
-    inline static int m_CursorPosY = 0;
-    inline static int m_LastCursorPosX = 0;
-    inline static int m_LastCursorPosY = 0;
     // xyz axis
     GLuint m_AxisesVbo;
     bool m_bEnableAxises = true;
@@ -92,7 +109,9 @@ private:
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
-    void run(); // run the render loop
+
+    // run the render loop
+    void run();
     
     // add model to render, return it's index
     int addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle);
