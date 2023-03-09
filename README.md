@@ -56,3 +56,7 @@ cmake --build .
 - [OpenGL® 4.5 Reference Pages](https://registry.khronos.org/OpenGL-Refpages/gl4/) (not yet updated for 4.6)
 - The OpenGL® Shading Language, Version 4.60.7: [HTML](https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.4.60.html), [PDF](https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.4.60.pdf)
 - [OpenGL 4.6 Quick Reference Card](https://www.khronos.org/files/opengl46-quick-reference-card.pdf)
+
+## 参考
+
+- [计算机图形学编程（使用OpenGL和C++）](https://book.douban.com/subject/34987432/)

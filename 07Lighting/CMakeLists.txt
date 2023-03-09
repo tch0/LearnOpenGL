@@ -8,3 +8,5 @@ copy_resources_after_build_target(01TestRenderer
     # texture files
     ${CMAKE_CURRENT_SOURCE_DIR}/01BrickTexture.jpg
 )
+
+opengl_instance(02GouraudShading 02GouraudShading.cpp)

@@ -18,9 +18,9 @@ public:
     void setDiffuse(glm::vec4 diffuse);
     void setSpecular(glm::vec4 specular);
     void setShininess(float shininess);
-    glm::vec4 getAmbient();
-    glm::vec4 getDiffuse();
-    glm::vec4 getSpecular();
+    const glm::vec4& getAmbient();
+    const glm::vec4& getDiffuse();
+    const glm::vec4& getSpecular();
     float getShininess();
 };
 

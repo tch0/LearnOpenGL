@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include "Material.h"
 #include "Model.h"
+#include "Logger.h"
+#include "Light.h"
 
 namespace Utils
 {
@@ -31,6 +33,12 @@ public:
         LightingMaterial,           // support lighting, render to specific material
         LightingTexture             // combine lighting with texture
     };
+    enum LightingMode
+    {
+        FlatShading,            // the old shading mode, do not interpolate, aka patch shading
+        GouraudShading,         // one way of smooth shading
+        PhongShading            // another way of smooth shading
+    };
 private:
     struct ModelAttributes
     {
@@ -39,6 +47,8 @@ private:
         GLsizei verticesCount = 0;
         glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f); // default to pure white, only for pure color styles
         GLuint texture = 0; // texture id, only for SpecificTexture style
+        std::unique_ptr<Material> spMaterial = nullptr;  // for LightingMaterial style
+        LightingMode lightingMode = FlatShading; // lighting Mode, for LightingMaterial/LightingTexture style
         // rotation attributes
         bool bRotate = false;
         glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -80,6 +90,11 @@ private:
     static int& getLastCursorPosX(GLFWwindow* w) { return s_WindowAttrs[w].m_LastCursorPosX; }
     static int& getLastCursorPosY(GLFWwindow* w) { return s_WindowAttrs[w].m_LastCursorPosY; }
 private:
+    // some max lihgts number constants, must be same as the number in the shader !
+    static constexpr std::size_t MAX_POINT_LIGHT_SIZE = 10;
+    static constexpr std::size_t MAX_DIRECTIONAL_LIGHT_SIZE = 10;
+    static constexpr std::size_t MAX_SPOT_LIGHT_SIZE = 10;
+private:
     // window
     GLFWwindow* m_pWindow = nullptr;
     // lighting
@@ -101,11 +116,19 @@ private:
     GLuint m_PureColorShaderProgram;
     GLuint m_VaryingColorShaderProgram;
     GLuint m_TextureShaderProgram;
-    GLuint m_LightingShderProgram;
+    GLuint m_GouraudLightingMaterialShderProgram;
+    GLuint m_PhongLightingMaterialShaderProgram;
+    GLuint m_GouraudLightingTextureShderProgram;
+    GLuint m_PhongLightingTextureShaderProgram;
     // xyz axis
     GLuint m_AxisesVbo;
     bool m_bEnableAxises = true;
     float m_AxisLength = 100.0f;
+    // light sources
+    glm::vec4 m_GlobalAmbient;
+    std::vector<DirectionalLight> m_DirectionalLights;
+    std::vector<PointLight> m_PointLights;
+    std::vector<SpotLight> m_SpotLights;
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
@@ -115,6 +138,15 @@ public:
     
     // add model to render, return it's index
     int addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle);
+
+    // add lighting to render, affect those objects with lighting modes (LightingMaterial/LightingTexture)
+    void setGlobalAmbientLight(glm::vec4 ambient);
+    void addDirectionalLight(const DirectionalLight& light);
+    void addDirectionalLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 specular, glm::vec3 direction);
+    void addPointLight(const PointLight& light);
+    void addPointLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 specular, glm::vec3 location, float constant, float linear, float quadratic);
+    void addSpotLight(const SpotLight& light);
+    void addSpotLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 specular, glm::vec3 location, glm::vec3 direction, float cutoff, float exponent);
 
     // set face culling attributes, defualt to true/GL_BACK/GL_CCW
     void setFaceCullingAttribute(bool enable, GLenum mode, GLenum front); 
@@ -129,7 +161,10 @@ public:
     // set texture for model, just for SpecificTexture style
     void setTexture(int modelIndex, const char* textureImagePath);
     void setTexture(int modelIndex, GLuint textureId);
-    // lighting: todo
+    // set material for model, for LightingMaterial style
+    void setMaterial(int modelIndex, const Material& material);
+    // set lighting mode of model, default to FlatShading
+    void setLightingMode(int modelIndex, LightingMode mode);
 private:
     void updateViewArgsAccordingToCursorPos();
     void drawAxises();

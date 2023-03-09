@@ -31,17 +31,17 @@ void Material::setShininess(float shininess)
     m_shininess = shininess;
 }
 
-glm::vec4 Material::getAmbient()
+const glm::vec4& Material::getAmbient()
 {
     return m_amibent;
 }
 
-glm::vec4 Material::getDiffuse()
+const glm::vec4& Material::getDiffuse()
 {
     return m_diffuse;
 }
 
-glm::vec4 Material::getSpecular()
+const glm::vec4& Material::getSpecular()
 {
     return m_specular;
 }

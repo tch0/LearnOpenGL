@@ -135,7 +135,7 @@ GLuint loadTexture(const char* textureImagePath)
     textureId = SOIL_load_OGL_texture(textureImagePath, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
     if (textureId == 0)
     {
-        Logger::globalLogger().warning("Utils::loadTexture: Could not find texture file!");
+        Logger::globalLogger().warning("Could not find texture file"s + textureImagePath + " !"s);
     }
     return textureId;
 }
