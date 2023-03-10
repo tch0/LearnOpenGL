@@ -42,13 +42,20 @@ public:
 private:
     struct ModelAttributes
     {
+        // model, render style, vertices count
         std::shared_ptr<Model> spModel = nullptr;
         RenderStyle style = VaryingColorLineStrip;
         GLsizei verticesCount = 0;
-        glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f); // default to pure white, only for pure color styles
-        GLuint texture = 0; // texture id, only for SpecificTexture style
-        std::unique_ptr<Material> spMaterial = nullptr;  // for LightingMaterial style
-        LightingMode lightingMode = FlatShading; // lighting Mode, for LightingMaterial/LightingTexture style
+        // color, default to pure white, only for pure color styles
+        glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        // texture
+        GLuint texture = 0; // texture id
+        bool doMipmapping = true;
+        bool doAnisotropicFiltering = true;
+        // material, for LightingMaterial style
+        std::unique_ptr<Material> spMaterial = nullptr;
+        // lighting mode, for LightingMaterial/LightingTexture style
+        LightingMode lightingMode = FlatShading;
         // rotation attributes
         bool bRotate = false;
         glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -159,13 +166,14 @@ public:
     // set render color, just for pure color style, default to pure white
     void setColor(int modelIndex, glm::vec4 color);
     // set texture for model, just for SpecificTexture style
-    void setTexture(int modelIndex, const char* textureImagePath);
-    void setTexture(int modelIndex, GLuint textureId);
+    void setTexture(int modelIndex, const char* textureImagePath, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setTexture(int modelIndex, GLuint textureId, bool doMipmapping = true, bool doAnisotropicFiltering = true);
     // set material for model, for LightingMaterial style
     void setMaterial(int modelIndex, const Material& material);
     // set lighting mode of model, default to FlatShading
     void setLightingMode(int modelIndex, LightingMode mode);
 private:
+    void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();
     void drawAxises();
     void display(float currentTime);

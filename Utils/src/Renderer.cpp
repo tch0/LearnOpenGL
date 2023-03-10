@@ -136,16 +136,33 @@ const char* GouraudLightingMaterialVertexShader = R"glsl(
 #define MAX_POINT_LIGHT_SIZE 10
 #define MAX_DIRECTIONAL_LIGHT_SIZE 10
 #define MAX_SPOT_LIGHT_SIZE 10
+struct DirectionalLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 direction; // in view space
+};
 struct PointLight
 {
     vec4 ambient;
     vec4 diffuse;
     vec4 specular;
-    vec3 location; // aleady in view space
+    vec3 location; // in view space
     // for attenuation factor
     float constant;
     float linear;
     float quadratic;
+};
+struct SpotLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    vec3 direction; // in view space
+    float cutOffAngle;
+    float strengthFactorExponent;
 };
 struct Material
 {
@@ -159,9 +176,15 @@ layout (location = 1) in vec3 texureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // lights
 uniform vec4 globalAmbient;
-uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform uint directionalLightsSize;
 uniform uint pointLightsSize;
+uniform uint spotLightsSize;
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHT_SIZE];
+uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform SpotLight spotLights[MAX_SPOT_LIGHT_SIZE];
+// material
 uniform Material material;
+// matrices
 uniform mat4 mvMatrix;      // model-view matrix
 uniform mat4 projMatrix;    // projection matrix
 uniform mat4 normMatrix;    // for transformation of normal vector
@@ -176,24 +199,63 @@ flat out vec4 flatVaryingColor; // for flat shading mode
    L  N  R   ___ eye
     \ | /___/ V
 _____\|/____________
+      P
 */
-vec3 calculatePointLight(PointLight light, vec4 P, vec3 N)
+
+vec3 calculateDirectionalLight(DirectionalLight light, vec3 P, vec3 N)
 {
     // light vector (from vertex to light source) in view space
-    vec3 L = normalize(light.location - P.xyz);
-    // visual vector (from vertex to eye) equals to the negative vertex position in view space
-    vec3 V = normalize(-P.xyz);
+    vec3 L = normalize(-light.direction);
+    // visual vector (from vertex to eye), equals to the nagative vertex position in view space
+    vec3 V = normalize(-P);
     // reflect vector
     vec3 R = reflect(-L, N);
     // the ADS weight of vertex
-    vec3 ambient = ((globalAmbient * material.ambient) + (light.ambient * material.ambient)).xyz;
+    vec3 ambient = (light.ambient * material.ambient).xyz;
+    vec3 diffuse = light.diffuse.xyz * material.diffuse.xyz * max(dot(N, L), 0.0);
+    vec3 specular = material.specular.xyz * light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess);
+    // directional light(like sun light) has no attenuation
+    return ambient + diffuse + specular;
+}
+
+vec3 calculatePointLight(PointLight light, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(light.location - P);
+    // visual vector (from vertex to eye) equals to the negative vertex position in view space
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // the ADS weight of vertex
+    vec3 ambient = (light.ambient * material.ambient).xyz;
     vec3 diffuse = light.diffuse.xyz * material.diffuse.xyz * max(dot(N, L), 0.0);
     vec3 specular = material.specular.xyz * light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess);
     // attenuation factor
-    float distance = length(light.location - P.xyz);
+    float distance = length(light.location - P);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * distance * distance);
     // result
     return (ambient + diffuse + specular) * attenuation;
+}
+
+vec3 calculateSpotLight(SpotLight light, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(light.location - P);
+    // visual vector (from vertex to eye)
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // the angle between visual vector and the center of spot light
+    float cosPhi = dot(-L, normalize(light.direction));
+    // strength factor
+    float strengthFactor = (cosPhi > cos(light.cutOffAngle)) ? pow(cosPhi, light.strengthFactorExponent) : 0;
+    // ADS weight of vertex
+    vec3 ambient = (light.ambient * material.ambient).xyz;
+    vec3 diffuse = light.diffuse.xyz * material.diffuse.xyz * max(dot(N, L), 0.0);
+    vec3 specular = material.specular.xyz * light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess);
+    // attenuation factor: no attenuation for now, may be model it as point light
+    // result
+    return (ambient + diffuse + specular) * strengthFactor;
 }
 
 void main()
@@ -204,9 +266,22 @@ void main()
     // normal vector in view space
     vec3 N = normalize((normMatrix * vec4(vertexNormal, 1.0)).xyz);
 
+    // global ambient
+    color += (globalAmbient * material.ambient).xyz;
+    // directional lights
+    for (uint i = 0; i < directionalLightsSize; i++)
+    {
+        color += calculateDirectionalLight(directionalLights[i], P.xyz, N);
+    }
+    // point lights
     for (uint i = 0; i < pointLightsSize; i++)
     {
-        color += calculatePointLight(pointLights[i], P, N);
+        color += calculatePointLight(pointLights[i], P.xyz, N);
+    }
+    // spot lights
+    for (uint i = 0; i < spotLightsSize; i++)
+    {
+        color += calculateSpotLight(spotLights[i], P.xyz, N);
     }
     varyingColor = vec4(color, 1.0);
     flatVaryingColor = varyingColor;
@@ -220,20 +295,38 @@ const char* GouraudLightingMaterialFragmentShader = R"glsl(
 #version 430
 in vec4 varyingColor;
 flat in vec4 flatVaryingColor; // for flat shading mode
+
 // different max light numbers, must be same as the number in the Renderer class !
 #define MAX_POINT_LIGHT_SIZE 10
 #define MAX_DIRECTIONAL_LIGHT_SIZE 10
 #define MAX_SPOT_LIGHT_SIZE 10
+struct DirectionalLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 direction; // in view space
+};
 struct PointLight
 {
     vec4 ambient;
     vec4 diffuse;
     vec4 specular;
-    vec3 location; // aleady in view space
+    vec3 location; // in view space
     // for attenuation factor
     float constant;
     float linear;
     float quadratic;
+};
+struct SpotLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec4 location; // in view space
+    vec3 direction; // in view space
+    float cutOffAngle;
+    float strengthFactorExponent;
 };
 struct Material
 {
@@ -247,9 +340,15 @@ layout (location = 1) in vec3 texureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // lights
 uniform vec4 globalAmbient;
-uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform uint directionalLightsSize;
 uniform uint pointLightsSize;
+uniform uint spotLightsSize;
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHT_SIZE];
+uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform SpotLight spotLights[MAX_SPOT_LIGHT_SIZE];
+// material
 uniform Material material;
+// matrices
 uniform mat4 mvMatrix;      // model-view matrix
 uniform mat4 projMatrix;    // projection matrix
 uniform mat4 normMatrix;    // for transformation of normal vector
@@ -400,6 +499,7 @@ Renderer::~Renderer()
 
 void Renderer::run()
 {
+    checkForModelAttributes();
     // render loop
     while (!glfwWindowShouldClose(m_pWindow))
     {
@@ -604,15 +704,19 @@ void Renderer::setColor(int modelIndex, glm::vec4 color)
 }
 
 // set texture for model, just for SpecificTexture style
-void Renderer::setTexture(int modelIndex, const char* textureImagePath)
+void Renderer::setTexture(int modelIndex, const char* textureImagePath, bool doMipmapping, bool doAnisotropicFiltering)
 {
     assert(modelIndex >= 0 && modelIndex < m_Models.size());
     m_Models[modelIndex].texture = loadTexture(textureImagePath);
+    m_Models[modelIndex].doMipmapping = doMipmapping;
+    m_Models[modelIndex].doAnisotropicFiltering = doAnisotropicFiltering;
 }
-void Renderer::setTexture(int modelIndex, GLuint textureId)
+void Renderer::setTexture(int modelIndex, GLuint textureId, bool doMipmapping, bool doAnisotropicFiltering)
 {
     assert(modelIndex >= 0 && modelIndex < m_Models.size());
     m_Models[modelIndex].texture = textureId;
+    m_Models[modelIndex].doMipmapping = doMipmapping;
+    m_Models[modelIndex].doAnisotropicFiltering = doAnisotropicFiltering;
 }
 
 // set material for model, for LightingMaterial style
@@ -627,6 +731,26 @@ void Renderer::setLightingMode(int modelIndex, LightingMode mode)
 {
     assert(modelIndex >= 0 && modelIndex < m_Models.size());
     m_Models[modelIndex].lightingMode = mode;
+}
+
+// check whether all data are prepared for model and specific render style
+// support some check that is not proper to do in display
+void Renderer::checkForModelAttributes()
+{
+    for (std::size_t i = 0; i < m_Models.size(); ++i)
+    {
+        if (m_Models[i].style == LightingMaterial)
+        {
+            if (!m_Models[i].spModel->supplyNormals())
+            {
+                Utils::Logger::globalLogger().warning("Model " + std::to_string(i) + " set to LightingMaterial render style but normals are not supplied.");
+            }
+            if (!m_Models[i].spMaterial)
+            {
+                Utils::Logger::globalLogger().warning("Model " + std::to_string(i) + " set to LightingMaterial render style but material is not supplied.");
+            }
+        }
+    }
 }
 
 // when left mouse button is holding, update view matrix according cursor change
@@ -854,6 +978,19 @@ void Renderer::display(float currentTime)
         {
             glActiveTexture(GL_TEXTURE0); // always use texture unit 0
             glBindTexture(GL_TEXTURE_2D, m_Models[i].texture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            if (m_Models[i].doMipmapping)
+            {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glGenerateMipmap(GL_TEXTURE_2D); // generate mipmapping
+            }
+            if (m_Models[i].doAnisotropicFiltering && GLAD_GL_EXT_texture_filter_anisotropic) // check if anisotropic filtering extension is supported ?
+            {
+                GLfloat anisoSetting = 0.0f;
+                glGetFloatv(GL_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
+                glTextureParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
+            }
         }
 
         // lighting and material
@@ -870,13 +1007,28 @@ void Renderer::display(float currentTime)
             // global ambient
             GLuint globalAmbLoc = glGetUniformLocation(program, "globalAmbient");
             glProgramUniform4fv(program, globalAmbLoc, 1, glm::value_ptr(m_GlobalAmbient));
-            // directional lights: todo
-            // point light size
-            GLuint sizeLoc = glGetUniformLocation(program, "pointLightsSize");
-            glProgramUniform1ui(program, sizeLoc, GLuint(m_PointLights.size()));
+            // directional lights
+            GLuint sizeLoc = glGetUniformLocation(program, "directionalLightsSize");
+            glProgramUniform1ui(program, sizeLoc, GLuint(m_DirectionalLights.size()));
+            for (std::size_t i = 0; i < m_DirectionalLights.size(); ++i)
+            {
+                glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_DirectionalLights[i].getDirection(), 1.0f));
+                std::string str = "directionalLights[" + std::to_string(i) + "]";
+                GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
+                GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
+                GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
+                GLuint dirLoc = glGetUniformLocation(program, (str + ".direction").c_str());
+                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_DirectionalLights[i].getAmbient()));
+                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_DirectionalLights[i].getDiffuse()));
+                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_DirectionalLights[i].getSpecular()));
+                glProgramUniform3fv(program, dirLoc, 1, glm::value_ptr(directionInViewSpace));
+            }
             // point lights
+            sizeLoc = glGetUniformLocation(program, "pointLightsSize");
+            glProgramUniform1ui(program, sizeLoc, GLuint(m_PointLights.size()));
             for (std::size_t i = 0; i < m_PointLights.size(); ++i)
             {
+                glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_PointLights[i].getLocation(), 1.0f));
                 std::string str = "pointLights[" + std::to_string(i) + "]";
                 GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
                 GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
@@ -888,12 +1040,34 @@ void Renderer::display(float currentTime)
                 glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_PointLights[i].getAmbient()));
                 glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_PointLights[i].getDiffuse()));
                 glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_PointLights[i].getSpecular()));
-                glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(m_PointLights[i].getLocation()));
+                glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(locationInViewSpace));
                 glProgramUniform1f(program, constantLoc, m_PointLights[i].getConstant());
                 glProgramUniform1f(program, linearLoc, m_PointLights[i].getLinear());
                 glProgramUniform1f(program, quadraticLoc, m_PointLights[i].getQuadratic());
             }
-            // spot lights: todo
+            // spot lights
+            sizeLoc = glGetUniformLocation(program, "spotLightsSize");
+            glProgramUniform1ui(program, sizeLoc, GLuint(m_SpotLights.size()));
+            for (std::size_t i = 0; i < m_SpotLights.size(); ++i)
+            {
+                glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_SpotLights[i].getLocation(), 1.0f));
+                glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_SpotLights[i].getDirection(), 1.0f));
+                std::string str = "spotLights[" + std::to_string(i) + "]";
+                GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
+                GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
+                GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
+                GLuint locLoc = glGetUniformLocation(program, (str + ".location").c_str());
+                GLuint dirLoc = glGetUniformLocation(program, (str + ".direction").c_str());
+                GLuint cutoffLoc = glGetUniformLocation(program, (str + ".cutOffAngle").c_str());
+                GLuint exponentLoc = glGetUniformLocation(program, (str + ".strengthFactorExponent").c_str());
+                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_SpotLights[i].getAmbient()));
+                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_SpotLights[i].getDiffuse()));
+                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_SpotLights[i].getSpecular()));
+                glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(locationInViewSpace));
+                glProgramUniform3fv(program, dirLoc, 1, glm::value_ptr(directionInViewSpace));
+                glProgramUniform1f(program, cutoffLoc, m_SpotLights[i].getCutOffAngle());
+                glProgramUniform1f(program, exponentLoc, m_SpotLights[i].getStrengthFactorExponent());
+            }
             // material
             GLuint mAmbLoc = glGetUniformLocation(program, "material.ambient");
             GLuint mDiffLoc = glGetUniformLocation(program, "material.diffuse");
