@@ -15,3 +15,5 @@ copy_resources_after_build_target(01TestRenderer
 opengl_instance(02GouraudShading 02GouraudShading.cpp)
 
 opengl_instance(03SpotLight 03SpotLight.cpp)
+
+opengl_instance(04PhongShading 04PhongShading.cpp)
