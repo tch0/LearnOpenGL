@@ -7,9 +7,9 @@
 opengl_instance(01TestRenderer 01TestRenderer.cpp)
 copy_resources_after_build_target(01TestRenderer
     # model files
-    ${CMAKE_CURRENT_SOURCE_DIR}/01TestModel.obj
+    ${CMAKE_CURRENT_SOURCE_DIR}/TestModel.obj
     # texture files
-    ${CMAKE_CURRENT_SOURCE_DIR}/01BrickTexture.jpg
+    ${CMAKE_CURRENT_SOURCE_DIR}/BrickTexture.jpg
 )
 
 opengl_instance(02GouraudShading 02GouraudShading.cpp)
@@ -17,3 +17,9 @@ opengl_instance(02GouraudShading 02GouraudShading.cpp)
 opengl_instance(03SpotLight 03SpotLight.cpp)
 
 opengl_instance(04PhongShading 04PhongShading.cpp)
+
+opengl_instance(05GouraudWithTexture 05GouraudWithTexture.cpp)
+copy_resources_after_build_target(05GouraudWithTexture
+    # texture files
+    ${CMAKE_CURRENT_SOURCE_DIR}/BrickTexture.jpg
+)

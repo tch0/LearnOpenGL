@@ -125,14 +125,14 @@ private:
     GLuint m_TextureShaderProgram;
     GLuint m_GouraudLightingMaterialShderProgram;
     GLuint m_PhongLightingMaterialShaderProgram;
-    GLuint m_GouraudLightingTextureShderProgram;
+    GLuint m_GouraudLightingTextureShaderProgram;
     GLuint m_PhongLightingTextureShaderProgram;
     // xyz axis
     GLuint m_AxisesVbo;
     bool m_bEnableAxises = true;
     float m_AxisLength = 100.0f;
     // light sources
-    glm::vec4 m_GlobalAmbient;
+    glm::vec4 m_GlobalAmbient = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     std::vector<DirectionalLight> m_DirectionalLights;
     std::vector<PointLight> m_PointLights;
     std::vector<SpotLight> m_SpotLights;

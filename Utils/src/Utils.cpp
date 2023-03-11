@@ -20,7 +20,7 @@ void printShaderLog(GLuint shader)
     {
         log = new char[len];
         glGetShaderInfoLog(shader, len, &chWritten, log);
-        Logger::globalLogger().info("Shader Info Log: "s + log);
+        Logger::globalLogger().info("Shader Info Log: \n"s + log);
         delete[] log;
     }
 }

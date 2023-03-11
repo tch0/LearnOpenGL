@@ -172,7 +172,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec3 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // lights
 uniform vec4 globalAmbient;
@@ -336,7 +336,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec3 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // lights
 uniform vec4 globalAmbient;
@@ -412,7 +412,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec3 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // lights
 uniform vec4 globalAmbient;
@@ -493,7 +493,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec3 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // lights
 uniform vec4 globalAmbient;
@@ -598,6 +598,262 @@ void main()
 }
 )glsl";
 
+// ================================ Gouraud shading with lighting and texture ================================
+const char* GouraudLightingTextureVertexShader = R"glsl(
+#version 430
+// different max light numbers, must be same as the number in the Renderer class !
+#define MAX_POINT_LIGHT_SIZE 10
+#define MAX_DIRECTIONAL_LIGHT_SIZE 10
+#define MAX_SPOT_LIGHT_SIZE 10
+struct DirectionalLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 direction; // in view space
+};
+struct PointLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    // for attenuation factor
+    float constant;
+    float linear;
+    float quadratic;
+};
+struct SpotLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    vec3 direction; // in view space
+    float cutOffAngle;
+    float strengthFactorExponent;
+};
+layout (location = 0) in vec3 vertexPos;        // vertex buffer
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 2) in vec3 vertexNormal;     // normals of vertices
+// texture sampler
+layout (binding = 0) uniform sampler2D samp;
+// lights
+uniform vec4 globalAmbient;
+uniform uint directionalLightsSize;
+uniform uint pointLightsSize;
+uniform uint spotLightsSize;
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHT_SIZE];
+uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform SpotLight spotLights[MAX_SPOT_LIGHT_SIZE];
+// matrices
+uniform mat4 mvMatrix;      // model-view matrix
+uniform mat4 projMatrix;    // projection matrix
+uniform mat4 normMatrix;    // for transformation of normal vector
+uniform int flatShading;    // flat shading or not.
+
+out vec3 ambient;
+out vec3 diffuse;
+out vec3 specular;
+flat out vec3 flatAmbient;
+flat out vec3 flatDiffuse;
+flat out vec3 flatSpecular;
+out vec2 tc;
+
+/*
+  light source
+  \
+   L  N  R   ___ eye
+    \ | /___/ V
+_____\|/____________
+      P
+*/
+
+void calculateDirectionalLight(DirectionalLight light, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(-light.direction);
+    // visual vector (from vertex to eye), equals to the nagative vertex position in view space
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // the ADS weight of vertex
+    ambient += light.ambient.xyz;
+    diffuse += light.diffuse.xyz * max(dot(N, L), 0.0);
+    // shininess always 1 for texture
+    specular += light.specular.xyz * max(dot(R, V), 0.0);
+}
+
+void calculatePointLight(PointLight light, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(light.location - P);
+    // visual vector (from vertex to eye) equals to the negative vertex position in view space
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // attenuation factor
+    float distance = length(light.location - P);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * distance * distance);
+    // the ADS weight of vertex
+    ambient += light.ambient.xyz * attenuation;
+    diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * attenuation;
+    // shininess always 1 for texture
+    specular += light.specular.xyz * max(dot(R, V), 0.0) * attenuation;
+}
+
+void calculateSpotLight(SpotLight light, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(light.location - P);
+    // visual vector (from vertex to eye)
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // the angle between visual vector and the center of spot light
+    float cosPhi = dot(-L, normalize(light.direction));
+    // strength factor
+    float strengthFactor = (cosPhi > cos(light.cutOffAngle)) ? pow(cosPhi, light.strengthFactorExponent) : 0;
+    // attenuation factor: no attenuation for now, may be model it as point light
+    // ADS weight of vertex
+    ambient += light.ambient.xyz * strengthFactor;
+    diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * strengthFactor;
+    // shininess always 1 for texture
+    specular += light.specular.xyz * max(dot(R, V), 0.0) * strengthFactor;
+}
+
+void main()
+{
+    // initialization
+    ambient = vec3(0.0, 0.0, 0.0);
+    diffuse = vec3(0.0, 0.0, 0.0);
+    specular = vec3(0.0, 0.0, 0.0);
+    flatAmbient = vec3(0.0, 0.0, 0.0);
+    flatDiffuse = vec3(0.0, 0.0, 0.0);
+    flatSpecular = vec3(0.0, 0.0, 0.0);
+
+    // vertex position in view space
+    vec4 P = mvMatrix * vec4(vertexPos, 1.0);
+    // normal vector in view space
+    vec3 N = normalize((normMatrix * vec4(vertexNormal, 1.0)).xyz);
+
+    // global ambient
+    ambient += globalAmbient.xyz;
+    // directional lights
+    for (uint i = 0; i < directionalLightsSize; i++)
+    {
+        calculateDirectionalLight(directionalLights[i], P.xyz, N);
+    }
+    // point lights
+    for (uint i = 0; i < pointLightsSize; i++)
+    {
+        calculatePointLight(pointLights[i], P.xyz, N);
+    }
+    // spot lights
+    for (uint i = 0; i < spotLightsSize; i++)
+    {
+        calculateSpotLight(spotLights[i], P.xyz, N);
+    }
+
+    // for flat shading
+    flatAmbient = ambient;
+    flatDiffuse = diffuse;
+    flatSpecular = specular;
+
+    // position
+    gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
+
+    // texture coordinates
+    tc = texureCoord;
+}
+)glsl";
+
+const char* GouraudLightingTextureFragmentShader = R"glsl(
+#version 430
+// different max light numbers, must be same as the number in the Renderer class !
+#define MAX_POINT_LIGHT_SIZE 10
+#define MAX_DIRECTIONAL_LIGHT_SIZE 10
+#define MAX_SPOT_LIGHT_SIZE 10
+struct DirectionalLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 direction; // in view space
+};
+struct PointLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    // for attenuation factor
+    float constant;
+    float linear;
+    float quadratic;
+};
+struct SpotLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    vec3 direction; // in view space
+    float cutOffAngle;
+    float strengthFactorExponent;
+};
+layout (location = 0) in vec3 vertexPos;        // vertex buffer
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 2) in vec3 vertexNormal;     // normals of vertices
+// texture sampler
+layout (binding = 0) uniform sampler2D samp;
+// lights
+uniform vec4 globalAmbient;
+uniform uint directionalLightsSize;
+uniform uint pointLightsSize;
+uniform uint spotLightsSize;
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHT_SIZE];
+uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform SpotLight spotLights[MAX_SPOT_LIGHT_SIZE];
+// matrices
+uniform mat4 mvMatrix;      // model-view matrix
+uniform mat4 projMatrix;    // projection matrix
+uniform mat4 normMatrix;    // for transformation of normal vector
+uniform int flatShading;    // flat shading or not.
+
+in vec3 ambient;
+in vec3 diffuse;
+in vec3 specular;
+flat in vec3 flatAmbient;
+flat in vec3 flatDiffuse;
+flat in vec3 flatSpecular;
+in vec2 tc;
+
+out vec4 fragColor;
+
+void main()
+{
+    // give every ADS weight a weight, not add them up, add them up could exceed 1.0
+    if (flatShading == 1)
+    {
+        fragColor = texture(samp, tc) * vec4(0.3 * flatAmbient + 0.4 * flatDiffuse + 0.4 * flatSpecular, 1.0);
+    }
+    else
+    {
+        fragColor = texture(samp, tc) * vec4(0.3 * ambient + 0.4 * diffuse + 0.4 * specular, 1.0);
+    }
+}
+)glsl";
+
+// ================================ Gouraud shading with lighting and texture ================================
+const char* PhongLightingTextureVertexShader = R"glsl(
+
+)glsl";
+
+const char* PhongLightingTextureFragmentShader = R"glsl(
+
+)glsl";
+
 Renderer::Renderer(const char* windowTitle, int width, int height, float axisLength)
     : m_AxisLength(axisLength)
 {
@@ -638,6 +894,8 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     m_TextureShaderProgram = createShaderProgramFromSource(textureVertexShader, textureFragmentShader);
     m_GouraudLightingMaterialShderProgram = createShaderProgramFromSource(GouraudLightingMaterialVertexShader, GouraudLightingMaterialFragmentShader);
     m_PhongLightingMaterialShaderProgram = createShaderProgramFromSource(PhongLightingMaterialVertexShader, PhongLightingMaterialFragmentShader);
+    m_GouraudLightingTextureShaderProgram = createShaderProgramFromSource(GouraudLightingTextureVertexShader, GouraudLightingTextureFragmentShader);
+    // m_PhongLightingTextureShaderProgram = createShaderProgramFromSource(PhongLightingTextureVertexShader, PhongLightingTextureFragmentShader);
 
     // init window attributes
     s_WindowAttrs.insert(std::make_pair(m_pWindow, WindowAttributes{}));
@@ -1116,7 +1374,7 @@ void Renderer::display(float currentTime)
             primitiveType = GL_TRIANGLES;
             if (m_Models[i].lightingMode == FlatShading || m_Models[i].lightingMode == GouraudShading)
             {
-                program = m_GouraudLightingTextureShderProgram;
+                program = m_GouraudLightingTextureShaderProgram;
             }
             else // Phong shading
             {
@@ -1196,7 +1454,7 @@ void Renderer::display(float currentTime)
         }
 
         // texture
-        if (style == SpecificTexture)
+        if (style == SpecificTexture || style == LightingTexture)
         {
             glActiveTexture(GL_TEXTURE0); // always use texture unit 0
             glBindTexture(GL_TEXTURE_2D, m_Models[i].texture);
@@ -1216,7 +1474,7 @@ void Renderer::display(float currentTime)
         }
 
         // lighting and material
-        if (style == LightingMaterial)
+        if (style == LightingMaterial || style == LightingTexture)
         {
             // do not check normals and material, assume they are supplied.
             
@@ -1291,16 +1549,19 @@ void Renderer::display(float currentTime)
                 glProgramUniform1f(program, exponentLoc, m_SpotLights[i].getStrengthFactorExponent());
             }
             // material
-            GLuint mAmbLoc = glGetUniformLocation(program, "material.ambient");
-            GLuint mDiffLoc = glGetUniformLocation(program, "material.diffuse");
-            GLuint mSpecLoc = glGetUniformLocation(program, "material.specular");
-            GLuint mShiLoc = glGetUniformLocation(program, "material.shininess");
-            if (m_Models[i].spMaterial)
+            if (style == LightingMaterial)
             {
-                glProgramUniform4fv(program, mAmbLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getAmbient()));
-                glProgramUniform4fv(program, mDiffLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getDiffuse()));
-                glProgramUniform4fv(program, mSpecLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getSpecular()));
-                glProgramUniform1f(program, mShiLoc, m_Models[i].spMaterial->getShininess());
+                GLuint mAmbLoc = glGetUniformLocation(program, "material.ambient");
+                GLuint mDiffLoc = glGetUniformLocation(program, "material.diffuse");
+                GLuint mSpecLoc = glGetUniformLocation(program, "material.specular");
+                GLuint mShiLoc = glGetUniformLocation(program, "material.shininess");
+                if (m_Models[i].spMaterial)
+                {
+                    glProgramUniform4fv(program, mAmbLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getAmbient()));
+                    glProgramUniform4fv(program, mDiffLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getDiffuse()));
+                    glProgramUniform4fv(program, mSpecLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getSpecular()));
+                    glProgramUniform1f(program, mShiLoc, m_Models[i].spMaterial->getShininess());
+                }
             }
 
             // build the inverse transpose of model-view matrix to transform vertex normal
