@@ -31,7 +31,7 @@ public:
         VaryingColorTriangles,      // varying color triangles according to coordinate
         SpecificTexture,            // render to specific texture
         LightingMaterial,           // support lighting, render to specific material
-        LightingTexture             // combine lighting with texture, NOT SUPPORTED YET !!!
+        LightingTexture             // combine lighting with texture
     };
     enum LightingMode
     {

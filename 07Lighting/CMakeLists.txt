@@ -23,3 +23,8 @@ copy_resources_after_build_target(05GouraudWithTexture
     # texture files
     ${CMAKE_CURRENT_SOURCE_DIR}/BrickTexture.jpg
 )
+opengl_instance(06PhongWithTexture 06PhongWithTexture.cpp)
+copy_resources_after_build_target(06PhongWithTexture
+    # texture files
+    ${CMAKE_CURRENT_SOURCE_DIR}/BrickTexture.jpg
+)
