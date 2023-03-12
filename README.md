@@ -1,16 +1,17 @@
 # OpenGL学习
 
+环境、工具链要求：
+- 支持C++20
+- OpenGL >= 4.0
+- CMake
+
 测试环境：
-- Windows 10，MinGW 12.2.0
+- Windows 10，MinGW-w64 gcc 12.2.0
 - Windows 10, MSVC 2022
-- Ubuntu 20.04, gcc 9.4.0
+- Ubuntu 20.04, gcc 12.2.0
 - 原则上是跨平台的，不过其他平台并未测试。
 
 ## 环境配置
-
-依赖：
-- C++编译器
-- CMake
 
 Linux中：
 - [glfw编译指南](https://www.glfw.org/docs/latest/compile.html)

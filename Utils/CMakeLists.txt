@@ -23,6 +23,6 @@ target_link_directories(Utils
     INTERFACE ${CMAKE_SOURCE_DIR}/3rdparty-install/lib
 )
 target_link_libraries(Utils
-    PRIVATE general_cxx_compiler_flags
+    PRIVATE general_cxx_compiler_flags extra_cxx_compiler_flags
     INTERFACE glad
 )

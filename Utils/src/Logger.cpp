@@ -47,6 +47,8 @@ void Logger::blockLevel(LogLevel level)
     case Fatal:
         m_bBlockFatal = true;
         break;
+    default:
+        break;
     }
 }
 

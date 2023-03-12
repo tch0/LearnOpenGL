@@ -61,7 +61,7 @@ int main(int argc, char const *argv[])
 
     // draw user-defined axises, override renderer axises
     std::shared_ptr<Utils::Model> spAxis(new Axises(100.0f));
-    auto lineIdx = renderer.addModel(spAxis, Utils::Renderer::VaryingColorLines);
+    renderer.addModel(spAxis, Utils::Renderer::VaryingColorLines);
 
     // run the render loop
     renderer.run();

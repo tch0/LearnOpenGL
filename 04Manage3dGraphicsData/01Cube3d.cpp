@@ -124,7 +124,7 @@ int main(int argc, char const *argv[])
     }
     // OpenGL compatibility
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     // create window
     window = glfwCreateWindow(1920, 1080, "01Cube3d", NULL, NULL);
     if (!window)

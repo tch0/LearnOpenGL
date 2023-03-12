@@ -695,7 +695,7 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
         std::exit(-1);
     }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     // create window
     m_pWindow = glfwCreateWindow(width, height, windowTitle, NULL, NULL);
     if (!m_pWindow)
@@ -752,7 +752,6 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
         glm::vec3& objectLocation = getObjectLocation(pWindow);
 
         int offset = int(yoffset);
-        glm::vec3 dir = glm::normalize(eyeLocation - objectLocation);
         while (offset >= 1)
         {
             eyeLocation = (eyeLocation - objectLocation) * 0.8f + objectLocation;
@@ -820,7 +819,7 @@ void Renderer::run()
 }
 
 // add model to render, return it's index
-int Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle)
+std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle)
 {
     m_Models.push_back(ModelAttributes{});
     ModelAttributes& attr = m_Models.back();
@@ -905,7 +904,7 @@ int Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle)
             glBufferData(GL_ARRAY_BUFFER, tTanVec.size() * sizeof(float), tTanVec.data(), GL_STATIC_DRAW);
         }
     }
-    return int(m_Models.size() - 1);
+    return m_Models.size() - 1;
 }
 
 // add different kinds of lighting
@@ -990,40 +989,40 @@ void Renderer::setFaceCullingAttribute(bool enable, GLenum mode, GLenum front)
 
 // set model attributes
 // set rotatoin attributes, default to false
-void Renderer::setModelRotation(int modelIndex, glm::vec3 rotationAxis, float rotationRate)
+void Renderer::setModelRotation(std::size_t modelIndex, glm::vec3 rotationAxis, float rotationRate)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
+    assert(modelIndex < m_Models.size());
     m_Models[modelIndex].bRotate = true;
     m_Models[modelIndex].rotationAxis = rotationAxis;
     m_Models[modelIndex].rotationRate = rotationRate;
 }
 
 // set render style
-void Renderer::setRenderStyle(int modelIndex, RenderStyle RenderStyle)
+void Renderer::setRenderStyle(std::size_t modelIndex, RenderStyle renderStyle)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
-    m_Models[modelIndex].style = RenderStyle;
+    assert(modelIndex < m_Models.size());
+    m_Models[modelIndex].style = renderStyle;
 }
 
 // set color to render, for PureColorPoints/PureColorLineStrip/PureColorTriangles style, default to 
-void Renderer::setColor(int modelIndex, glm::vec4 color)
+void Renderer::setColor(std::size_t modelIndex, glm::vec4 color)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
+    assert(modelIndex < m_Models.size());
     m_Models[modelIndex].color = color;
 }
 
 // set texture for model, just for SpecificTexture style
-void Renderer::setTexture(int modelIndex, const char* textureImagePath, float weight, bool doMipmapping, bool doAnisotropicFiltering)
+void Renderer::setTexture(std::size_t modelIndex, const char* textureImagePath, float weight, bool doMipmapping, bool doAnisotropicFiltering)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
+    assert(modelIndex < m_Models.size());
     m_Models[modelIndex].texture = loadTexture(textureImagePath);
     m_Models[modelIndex].textureWeight = weight;
     m_Models[modelIndex].doMipmapping = doMipmapping;
     m_Models[modelIndex].doAnisotropicFiltering = doAnisotropicFiltering;
 }
-void Renderer::setTexture(int modelIndex, GLuint textureId, float weight, bool doMipmapping, bool doAnisotropicFiltering)
+void Renderer::setTexture(std::size_t modelIndex, GLuint textureId, float weight, bool doMipmapping, bool doAnisotropicFiltering)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
+    assert(modelIndex < m_Models.size());
     m_Models[modelIndex].texture = textureId;
     m_Models[modelIndex].textureWeight = weight;
     m_Models[modelIndex].doMipmapping = doMipmapping;
@@ -1031,17 +1030,17 @@ void Renderer::setTexture(int modelIndex, GLuint textureId, float weight, bool d
 }
 
 // set material for model, for LightingMaterial style
-void Renderer::setMaterial(int modelIndex, const Material& material, float weight)
+void Renderer::setMaterial(std::size_t modelIndex, const Material& material, float weight)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
+    assert(modelIndex < m_Models.size());
     m_Models[modelIndex].spMaterial = std::make_unique<Material>(material);
     m_Models[modelIndex].materialWeight = weight;
 }
 
 // set lighting mode of model
-void Renderer::setLightingMode(int modelIndex, LightingMode mode)
+void Renderer::setLightingMode(std::size_t modelIndex, LightingMode mode)
 {
-    assert(modelIndex >= 0 && modelIndex < m_Models.size());
+    assert(modelIndex < m_Models.size());
     m_Models[modelIndex].lightingMode = mode;
 }
 
@@ -1307,26 +1306,26 @@ void Renderer::display(float currentTime)
             // directional lights
             GLuint sizeLoc = glGetUniformLocation(program, "directionalLightsSize");
             glProgramUniform1ui(program, sizeLoc, GLuint(m_DirectionalLights.size()));
-            for (std::size_t i = 0; i < m_DirectionalLights.size(); ++i)
+            for (std::size_t j = 0; j < m_DirectionalLights.size(); ++j)
             {
-                glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_DirectionalLights[i].getDirection(), 1.0f));
-                std::string str = "directionalLights[" + std::to_string(i) + "]";
+                glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_DirectionalLights[j].getDirection(), 1.0f));
+                std::string str = "directionalLights[" + std::to_string(j) + "]";
                 GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
                 GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
                 GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
                 GLuint dirLoc = glGetUniformLocation(program, (str + ".direction").c_str());
-                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_DirectionalLights[i].getAmbient()));
-                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_DirectionalLights[i].getDiffuse()));
-                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_DirectionalLights[i].getSpecular()));
+                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_DirectionalLights[j].getAmbient()));
+                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_DirectionalLights[j].getDiffuse()));
+                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_DirectionalLights[j].getSpecular()));
                 glProgramUniform3fv(program, dirLoc, 1, glm::value_ptr(directionInViewSpace));
             }
             // point lights
             sizeLoc = glGetUniformLocation(program, "pointLightsSize");
             glProgramUniform1ui(program, sizeLoc, GLuint(m_PointLights.size()));
-            for (std::size_t i = 0; i < m_PointLights.size(); ++i)
+            for (std::size_t j = 0; j < m_PointLights.size(); ++j)
             {
-                glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_PointLights[i].getLocation(), 1.0f));
-                std::string str = "pointLights[" + std::to_string(i) + "]";
+                glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_PointLights[j].getLocation(), 1.0f));
+                std::string str = "pointLights[" + std::to_string(j) + "]";
                 GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
                 GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
                 GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
@@ -1334,22 +1333,22 @@ void Renderer::display(float currentTime)
                 GLuint constantLoc = glGetUniformLocation(program, (str + ".constant").c_str());
                 GLuint linearLoc = glGetUniformLocation(program, (str + ".linear").c_str());
                 GLuint quadraticLoc = glGetUniformLocation(program, (str + ".quadratic").c_str());
-                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_PointLights[i].getAmbient()));
-                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_PointLights[i].getDiffuse()));
-                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_PointLights[i].getSpecular()));
+                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_PointLights[j].getAmbient()));
+                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_PointLights[j].getDiffuse()));
+                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_PointLights[j].getSpecular()));
                 glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(locationInViewSpace));
-                glProgramUniform1f(program, constantLoc, m_PointLights[i].getConstant());
-                glProgramUniform1f(program, linearLoc, m_PointLights[i].getLinear());
-                glProgramUniform1f(program, quadraticLoc, m_PointLights[i].getQuadratic());
+                glProgramUniform1f(program, constantLoc, m_PointLights[j].getConstant());
+                glProgramUniform1f(program, linearLoc, m_PointLights[j].getLinear());
+                glProgramUniform1f(program, quadraticLoc, m_PointLights[j].getQuadratic());
             }
             // spot lights
             sizeLoc = glGetUniformLocation(program, "spotLightsSize");
             glProgramUniform1ui(program, sizeLoc, GLuint(m_SpotLights.size()));
-            for (std::size_t i = 0; i < m_SpotLights.size(); ++i)
+            for (std::size_t j = 0; j < m_SpotLights.size(); ++j)
             {
-                glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_SpotLights[i].getLocation(), 1.0f));
-                glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_SpotLights[i].getDirection(), 1.0f));
-                std::string str = "spotLights[" + std::to_string(i) + "]";
+                glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_SpotLights[j].getLocation(), 1.0f));
+                glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_SpotLights[j].getDirection(), 1.0f));
+                std::string str = "spotLights[" + std::to_string(j) + "]";
                 GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
                 GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
                 GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
@@ -1357,13 +1356,13 @@ void Renderer::display(float currentTime)
                 GLuint dirLoc = glGetUniformLocation(program, (str + ".direction").c_str());
                 GLuint cutoffLoc = glGetUniformLocation(program, (str + ".cutOffAngle").c_str());
                 GLuint exponentLoc = glGetUniformLocation(program, (str + ".strengthFactorExponent").c_str());
-                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_SpotLights[i].getAmbient()));
-                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_SpotLights[i].getDiffuse()));
-                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_SpotLights[i].getSpecular()));
+                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_SpotLights[j].getAmbient()));
+                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_SpotLights[j].getDiffuse()));
+                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_SpotLights[j].getSpecular()));
                 glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(locationInViewSpace));
                 glProgramUniform3fv(program, dirLoc, 1, glm::value_ptr(directionInViewSpace));
-                glProgramUniform1f(program, cutoffLoc, m_SpotLights[i].getCutOffAngle());
-                glProgramUniform1f(program, exponentLoc, m_SpotLights[i].getStrengthFactorExponent());
+                glProgramUniform1f(program, cutoffLoc, m_SpotLights[j].getCutOffAngle());
+                glProgramUniform1f(program, exponentLoc, m_SpotLights[j].getStrengthFactorExponent());
             }
             // material and texture weight
             GLuint materialWeightLoc = glGetUniformLocation(program, "materialWeight");

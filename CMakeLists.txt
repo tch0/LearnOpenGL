@@ -19,8 +19,11 @@ target_compile_options(general_cxx_compiler_flags INTERFACE
     "$<${msvc_cxx}:$<BUILD_INTERFACE:/W3>>"
 )
 
-# common utility library for all programs
-add_subdirectory(Utils)
+# extra compiler flags, disable inevitable annoying third-party library headers' warnings
+add_library(extra_cxx_compiler_flags INTERFACE)
+target_compile_options(extra_cxx_compiler_flags INTERFACE
+    "$<${gcc_like_cxx}:$<BUILD_INTERFACE:-Wno-volatile>>" # for glm headers
+)
 
 # 3rd-party libraries:
 #       static library: glfw glad soil2
@@ -42,6 +45,7 @@ function(opengl_instance target)
     target_link_libraries(${target}
         PRIVATE
             general_cxx_compiler_flags
+            extra_cxx_compiler_flags
         PUBLIC
             Utils # the link order matters on gcc, Utils depends on 3rdparty libraries, so Utils must be ahead of 3rd parties
             ${3rdparty_libs}
@@ -59,6 +63,8 @@ function(copy_resources_after_build_target target sources)
     )
 endfunction()
 
+# common utility library for all programs
+add_subdirectory(Utils)
 # examples
 add_subdirectory(02OpenGLPipeline)
 add_subdirectory(03Mathematics)

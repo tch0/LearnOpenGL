@@ -143,7 +143,7 @@ public:
     void run();
     
     // add model to render, return it's index
-    int addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle);
+    std::size_t addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle);
 
     // add lighting to render, affect those objects with lighting modes (LightingMaterial/LightingTexture)
     void setGlobalAmbientLight(glm::vec4 ambient);
@@ -159,18 +159,18 @@ public:
 
     // set model attributes
     // set rotatoin attributes, default to false
-    void setModelRotation(int modelIndex, glm::vec3 rotationAxis, float rotationRate);
+    void setModelRotation(std::size_t modelIndex, glm::vec3 rotationAxis, float rotationRate);
     // set render style
-    void setRenderStyle(int modelIndex, RenderStyle RenderStyle);
+    void setRenderStyle(std::size_t modelIndex, RenderStyle renderStyle);
     // set render color, just for pure color style, default to pure white
-    void setColor(int modelIndex, glm::vec4 color);
+    void setColor(std::size_t modelIndex, glm::vec4 color);
     // set texture for model, just for SpecificTexture style
-    void setTexture(int modelIndex, const char* textureImagePath, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
-    void setTexture(int modelIndex, GLuint textureId, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setTexture(std::size_t modelIndex, const char* textureImagePath, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setTexture(std::size_t modelIndex, GLuint textureId, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
     // set material for model, for LightingMaterial style
-    void setMaterial(int modelIndex, const Material& material, float weight = 1.0);
+    void setMaterial(std::size_t modelIndex, const Material& material, float weight = 1.0);
     // set lighting mode of model, default to FlatShading
-    void setLightingMode(int modelIndex, LightingMode mode);
+    void setLightingMode(std::size_t modelIndex, LightingMode mode);
 private:
     void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();
