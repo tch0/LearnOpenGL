@@ -27,7 +27,7 @@ int main(int argc, char const *argv[])
     std::shared_ptr<Utils::Model> spTorus(new Utils::Torus(1, 3));
     auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingMaterialTexture);
     renderer.setTexture(torusIdx, "BrickTexture.jpg", 0.5);
-    renderer.setMaterial(torusIdx, Utils::goldMaterial);
+    renderer.setMaterial(torusIdx, Utils::goldMaterial, 0.5);
     renderer.setLightingMode(torusIdx, Utils::Renderer::PhongShading);
 
     // lights
