@@ -30,8 +30,7 @@ public:
         VaryingColorLineStrip,      // varying color line strips according to coordinate
         VaryingColorTriangles,      // varying color triangles according to coordinate
         SpecificTexture,            // render to specific texture
-        LightingMaterial,           // support lighting, render to specific material
-        LightingTexture             // combine lighting with texture
+        LightingMaterialTexture     // support lighting, mix texture and material with specific weight
     };
     enum LightingMode
     {
@@ -52,8 +51,10 @@ private:
         GLuint texture = 0; // texture id
         bool doMipmapping = true;
         bool doAnisotropicFiltering = true;
+        float textureWeight = 0.0;
         // material, for LightingMaterial style
         std::unique_ptr<Material> spMaterial = nullptr;
+        float materialWeight = 0.0;
         // lighting mode, for LightingMaterial/LightingTexture style
         LightingMode lightingMode = FlatShading;
         // rotation attributes
@@ -123,10 +124,8 @@ private:
     GLuint m_PureColorShaderProgram;
     GLuint m_VaryingColorShaderProgram;
     GLuint m_TextureShaderProgram;
-    GLuint m_GouraudLightingMaterialShderProgram;
-    GLuint m_PhongLightingMaterialShaderProgram;
-    GLuint m_GouraudLightingTextureShaderProgram;
-    GLuint m_PhongLightingTextureShaderProgram;
+    GLuint m_GouraudLightingMaterialTextureShderProgram;
+    GLuint m_PhongLightingMaterialTextureShaderProgram;
     // xyz axis
     GLuint m_AxisesVbo;
     bool m_bEnableAxises = true;
@@ -166,10 +165,10 @@ public:
     // set render color, just for pure color style, default to pure white
     void setColor(int modelIndex, glm::vec4 color);
     // set texture for model, just for SpecificTexture style
-    void setTexture(int modelIndex, const char* textureImagePath, bool doMipmapping = true, bool doAnisotropicFiltering = true);
-    void setTexture(int modelIndex, GLuint textureId, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setTexture(int modelIndex, const char* textureImagePath, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setTexture(int modelIndex, GLuint textureId, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
     // set material for model, for LightingMaterial style
-    void setMaterial(int modelIndex, const Material& material);
+    void setMaterial(int modelIndex, const Material& material, float weight = 1.0);
     // set lighting mode of model, default to FlatShading
     void setLightingMode(int modelIndex, LightingMode mode);
 private:

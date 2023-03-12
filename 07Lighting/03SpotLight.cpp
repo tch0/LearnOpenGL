@@ -23,7 +23,7 @@ int main(int argc, char const *argv[])
     Utils::Renderer renderer("03SpotLight");
     // models
     std::shared_ptr<Utils::Model> spTorus(new Utils::Torus(1, 3));
-    auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingMaterial);
+    auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingMaterialTexture);
     renderer.setMaterial(torusIdx, Utils::goldMaterial);
     renderer.setLightingMode(torusIdx, Utils::Renderer::GouraudShading);
 

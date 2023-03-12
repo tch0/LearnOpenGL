@@ -34,12 +34,12 @@ int main(int argc, char const *argv[])
 
     // models
     std::shared_ptr<Utils::Model> spSphere(new Utils::Sphere());
-    auto sphereIdx = renderer.addModel(spSphere, Utils::Renderer::LightingMaterial);
+    auto sphereIdx = renderer.addModel(spSphere, Utils::Renderer::LightingMaterialTexture);
     renderer.setMaterial(sphereIdx, Utils::goldMaterial);
     renderer.setLightingMode(sphereIdx, Utils::Renderer::FlatShading);
     
     std::shared_ptr<Utils::Model> spTorus(new Utils::Torus(1, 3));
-    auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingMaterial);
+    auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingMaterialTexture);
     renderer.setMaterial(torusIdx, Utils::bronzeMaterial);
     renderer.setLightingMode(torusIdx, Utils::Renderer::GouraudShading);
 

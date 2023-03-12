@@ -26,7 +26,7 @@ int main(int argc, char const *argv[])
     Utils::Renderer renderer("06PhongWithTexture");
     // models
     std::shared_ptr<Utils::Model> spTorus(new Utils::Torus(1, 3));
-    auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingTexture);
+    auto torusIdx = renderer.addModel(spTorus, Utils::Renderer::LightingMaterialTexture);
     renderer.setTexture(torusIdx, "BrickTexture.jpg");
     renderer.setLightingMode(torusIdx, Utils::Renderer::PhongShading);
 
