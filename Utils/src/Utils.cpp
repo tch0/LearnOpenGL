@@ -10,7 +10,7 @@ namespace Utils
 
 // error handling
 // for GLSL compile error
-void printShaderLog(GLuint shader)
+void printShaderLog(GLuint shader, const std::source_location& loc)
 {
     GLint len = 0;
     GLint chWritten = 0;
@@ -20,12 +20,12 @@ void printShaderLog(GLuint shader)
     {
         log = new char[len];
         glGetShaderInfoLog(shader, len, &chWritten, log);
-        Logger::globalLogger().info("Shader Info Log: \n"s + log);
+        Logger::globalLogger().info("Shader Info Log: \n"s + log, loc);
         delete[] log;
     }
 }
 // for GLSL link error
-void printProgramLog(GLuint program)
+void printProgramLog(GLuint program, const std::source_location& loc)
 {
     GLint len = 0;
     GLint chWritten = 0;
@@ -35,18 +35,42 @@ void printProgramLog(GLuint program)
     {
         log = new char[len];
         glGetProgramInfoLog(program, len, &chWritten, log);
-        Logger::globalLogger().info("Shader Info Log: \n"s + log);
+        Logger::globalLogger().info("Shader Info Log: \n"s + log, loc);
         delete[] log;
     }
 }
+
+static std::string glErrorToString(GLenum glError)
+{
+    switch(glError)
+    {
+    case GL_INVALID_ENUM:
+        return "GL_INVALID_ENUM"s;
+    case GL_INVALID_VALUE:
+        return "GL_INVALID_VALUE"s;
+    case GL_INVALID_OPERATION:
+        return "GL_INVALID_OPERATION"s;
+    case GL_INVALID_FRAMEBUFFER_OPERATION:
+        return "GL_INVALID_FRAMEBUFFER_OPERATION"s;
+    case GL_OUT_OF_MEMORY:
+        return "GL_OUT_OF_MEMORY"s;
+    case GL_STACK_UNDERFLOW:
+        return "GL_STACK_UNDERFLOW"s;
+    case GL_STACK_OVERFLOW:
+        return "GL_STACK_OVERFLOW"s;
+    default:
+        return std::to_string(glError);
+    }
+}
+
 // check for general OPenGL error
-bool checkOpenGLError()
+bool checkOpenGLError(const std::source_location& loc)
 {
     bool foundError = false;
     GLenum glErr = glGetError();
     while (glErr != GL_NO_ERROR)
     {
-        Logger::globalLogger().warning("glError: "s + std::to_string(glErr));
+        Logger::globalLogger().warning("glError: "s + glErrorToString(glErr), loc);
         foundError = true;
         glErr = glGetError();
     }
@@ -54,13 +78,13 @@ bool checkOpenGLError()
 }
 
 // read shader source from file
-std::string readShaderSource(const char* filePath)
+std::string readShaderSource(const char* filePath, const std::source_location& loc)
 {
     std::string content;
     std::ifstream fin(filePath);
     if (!fin.is_open())
     {
-        Logger::globalLogger().warning("Shader file "s + filePath + " does not exist!"s);
+        Logger::globalLogger().warning("Shader file "s + filePath + " does not exist!"s, loc);
         return content;
     }
     std::string line;
@@ -74,15 +98,15 @@ std::string readShaderSource(const char* filePath)
 }
 
 // create a program from shaders files
-GLuint createShaderProgram(const char* vertexShaderFile, const char* fragmentShaderFile)
+GLuint createShaderProgram(const char* vertexShaderFile, const char* fragmentShaderFile, const std::source_location& loc)
 {
-    std::string vertexShaderStr = readShaderSource(vertexShaderFile);
-    std::string fragShaderStr = readShaderSource(fragmentShaderFile);
-    return createShaderProgramFromSource(vertexShaderStr.c_str(), fragShaderStr.c_str());
+    std::string vertexShaderStr = readShaderSource(vertexShaderFile, loc);
+    std::string fragShaderStr = readShaderSource(fragmentShaderFile, loc);
+    return createShaderProgramFromSource(vertexShaderStr.c_str(), fragShaderStr.c_str(), loc);
 }
 
 // create a shader program from shader sources
-GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader)
+GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const std::source_location& loc)
 {
     // create empty shader object
     GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
@@ -99,8 +123,8 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     glGetShaderiv(vShader, GL_COMPILE_STATUS, &vertCompiled);
     if (vertCompiled != GL_TRUE)
     {
-        Logger::globalLogger().warning("Vertex shader compilation failed!");
-        printShaderLog(vShader);
+        Logger::globalLogger().warning("Vertex shader compilation failed!", loc);
+        printShaderLog(vShader, loc);
     }
     glCompileShader(fShader);
     checkOpenGLError();
@@ -108,8 +132,8 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     glGetShaderiv(fShader, GL_COMPILE_STATUS, &fragCompiled);
     if (fragCompiled != GL_TRUE)
     {
-        Logger::globalLogger().warning("Fragment shader compilation failed!");
-        printShaderLog(fShader);
+        Logger::globalLogger().warning("Fragment shader compilation failed!", loc);
+        printShaderLog(fShader, loc);
     }
     
     // create program, attach shaders to program (in GPU)
@@ -122,20 +146,20 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     glGetProgramiv(vfProgram, GL_LINK_STATUS, &linkStatus);
     if (linkStatus != GL_TRUE)
     {
-        Logger::globalLogger().warning("Linking failed!");
-        printProgramLog(vfProgram);
+        Logger::globalLogger().warning("Shader program linking failed!", loc);
+        printProgramLog(vfProgram, loc);
     }
     return vfProgram;
 }
 
 // load texture to OpenGL texture object
-GLuint loadTexture(const char* textureImagePath)
+GLuint loadTexture(const char* textureImagePath, const std::source_location& loc)
 {
     GLuint textureId;
     textureId = SOIL_load_OGL_texture(textureImagePath, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
     if (textureId == 0)
     {
-        Logger::globalLogger().warning("Could not find texture file"s + textureImagePath + " !"s);
+        Logger::globalLogger().warning("Could not find texture file "s + textureImagePath + " !"s, loc);
     }
     return textureId;
 }

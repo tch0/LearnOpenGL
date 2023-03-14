@@ -31,12 +31,12 @@ public:
     void blockLevel(LogLevel level);
     
     // log functions
-    void trace(const std::string& str, std::source_location loc = std::source_location::current());
-    void debug(const std::string& str, std::source_location loc = std::source_location::current());
-    void info(const std::string& str, std::source_location loc = std::source_location::current());
-    void warning(const std::string& str, std::source_location loc = std::source_location::current());
-    void error(const std::string& str, std::source_location loc = std::source_location::current());
-    void fatal(const std::string& str, std::source_location loc = std::source_location::current());
+    void trace(const std::string& str, const std::source_location& loc = std::source_location::current());
+    void debug(const std::string& str, const std::source_location& loc = std::source_location::current());
+    void info(const std::string& str, const std::source_location& loc = std::source_location::current());
+    void warning(const std::string& str, const std::source_location& loc = std::source_location::current());
+    void error(const std::string& str, const std::source_location& loc = std::source_location::current());
+    void fatal(const std::string& str, const std::source_location& loc = std::source_location::current());
 
     // a global logger to use
     static Logger& globalLogger();

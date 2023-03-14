@@ -53,7 +53,7 @@ void Logger::blockLevel(LogLevel level)
 }
 
 // log functions
-void Logger::trace(const std::string& str, std::source_location loc)
+void Logger::trace(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockTrace && m_LowestLevel <= Trace)
     {
@@ -61,7 +61,7 @@ void Logger::trace(const std::string& str, std::source_location loc)
             << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
     }
 }
-void Logger::debug(const std::string& str, std::source_location loc)
+void Logger::debug(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockDebug && m_LowestLevel <= Debug)
     {
@@ -69,7 +69,7 @@ void Logger::debug(const std::string& str, std::source_location loc)
             << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
     }
 }
-void Logger::info(const std::string& str, std::source_location loc)
+void Logger::info(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockInfo && m_LowestLevel <= Info)
     {
@@ -77,7 +77,7 @@ void Logger::info(const std::string& str, std::source_location loc)
             << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
     }
 }
-void Logger::warning(const std::string& str, std::source_location loc)
+void Logger::warning(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockWarning && m_LowestLevel <= Warning)
     {
@@ -85,7 +85,7 @@ void Logger::warning(const std::string& str, std::source_location loc)
             << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
     }
 }
-void Logger::error(const std::string& str, std::source_location loc)
+void Logger::error(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockError && m_LowestLevel <= Error)
     {
@@ -93,7 +93,7 @@ void Logger::error(const std::string& str, std::source_location loc)
             << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
     }
 }
-void Logger::fatal(const std::string& str, std::source_location loc)
+void Logger::fatal(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockFatal && m_LowestLevel <= Fatal)
     {
