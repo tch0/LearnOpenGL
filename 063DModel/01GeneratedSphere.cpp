@@ -143,7 +143,7 @@ int main(int argc, char const *argv[])
     }
     // OpenGL compatibility
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     // create window
     window = glfwCreateWindow(1920, 1080, "01GeneratedSphere", NULL, NULL);
     if (!window)

@@ -695,7 +695,7 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
         std::exit(-1);
     }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     // create window
     m_pWindow = glfwCreateWindow(width, height, windowTitle, NULL, NULL);
     if (!m_pWindow)
