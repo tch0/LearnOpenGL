@@ -22,6 +22,7 @@ GLuint createShaderProgram(const char* vertexShader, const char* fragmentShader,
 
 // create shader program from vertex shader and fragment shader sources
 GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const std::source_location& loc = std::source_location::current());
+GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const char* geometryShader, const std::source_location& loc = std::source_location::current());
 
 // load texture to OpenGL texture object
 GLuint loadTexture(const char* textureImagePath, const std::source_location& loc = std::source_location::current());

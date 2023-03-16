@@ -1082,12 +1082,12 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     glfwSwapInterval(1);
 
     // shaders
-    m_AxisesShaderProgram = createShaderProgramFromSource(axisesVertexShader, axisesFragmentShader);
-    m_PureColorShaderProgram = createShaderProgramFromSource(pureColorVertexShader, pureColorFragmentShader);
-    m_VaryingColorShaderProgram = createShaderProgramFromSource(varyingColorVertexShader, varyingColorFragmentShader);
-    m_TextureShaderProgram = createShaderProgramFromSource(textureVertexShader, textureFragmentShader);
-    m_GouraudLightingMaterialTextureShderProgram = createShaderProgramFromSource(GouraudLightingMaterialTextureVertexShader, GouraudLightingMaterialTextureFragmentShader);
-    m_PhongLightingMaterialTextureShaderProgram = createShaderProgramFromSource(PhongLightingMaterialTextureVertexShader, PhongLightingMaterialTextureFragmentShader);
+    m_AxisesShader.setShaderSource(axisesVertexShader, axisesFragmentShader);
+    m_PureColorShader.setShaderSource(pureColorVertexShader, pureColorFragmentShader);
+    m_VaryingColorShader.setShaderSource(varyingColorVertexShader, varyingColorFragmentShader);
+    m_TextureShader.setShaderSource(textureVertexShader, textureFragmentShader);
+    m_GouraudMaterialTextureShader.setShaderSource(GouraudLightingMaterialTextureVertexShader, GouraudLightingMaterialTextureFragmentShader);
+    m_PhongMaterialTextureShader.setShaderSource(PhongLightingMaterialTextureVertexShader, PhongLightingMaterialTextureFragmentShader);
 
     // init window attributes
     s_WindowAttrs.insert(std::make_pair(m_pWindow, WindowAttributes{}));
@@ -1417,18 +1417,27 @@ void Renderer::setColor(std::size_t modelIndex, glm::vec4 color)
 void Renderer::setTexture(std::size_t modelIndex, const char* textureImagePath, float weight, bool doMipmapping, bool doAnisotropicFiltering)
 {
     assert(modelIndex < m_Models.size());
-    m_Models[modelIndex].texture = loadTexture(textureImagePath);
-    m_Models[modelIndex].textureWeight = weight;
-    m_Models[modelIndex].doMipmapping = doMipmapping;
-    m_Models[modelIndex].doAnisotropicFiltering = doAnisotropicFiltering;
+    setTexture(modelIndex, loadTexture(textureImagePath), weight, doMipmapping, doAnisotropicFiltering);
 }
 void Renderer::setTexture(std::size_t modelIndex, GLuint textureId, float weight, bool doMipmapping, bool doAnisotropicFiltering)
 {
     assert(modelIndex < m_Models.size());
     m_Models[modelIndex].texture = textureId;
     m_Models[modelIndex].textureWeight = weight;
-    m_Models[modelIndex].doMipmapping = doMipmapping;
-    m_Models[modelIndex].doAnisotropicFiltering = doAnisotropicFiltering;
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    if (doMipmapping)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glGenerateMipmap(GL_TEXTURE_2D); // generate mipmapping
+    }
+    if (doAnisotropicFiltering && GLAD_GL_EXT_texture_filter_anisotropic) // check if anisotropic filtering extension is supported ?
+    {
+        GLfloat anisoSetting = 0.0f;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
+    }
 }
 
 // set material for model, for LightingMaterialTexture style
@@ -1511,7 +1520,7 @@ void Renderer::drawAxises()
 {
     if (m_bEnableAxises)
     {
-        glUseProgram(m_AxisesShaderProgram);
+        m_AxisesShader.use();
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
 
@@ -1519,12 +1528,9 @@ void Renderer::drawAxises()
         m_ViewMatrix = glm::lookAt(getEyeLocation(m_pWindow), getObjectLocation(m_pWindow), getUpVector(m_pWindow));
         m_ModelViewMatrix = m_ViewMatrix * m_ModelMatrix;
 
-        GLuint lenLoc = glGetUniformLocation(m_AxisesShaderProgram, "axisLength");
-        GLuint mvLoc = glGetUniformLocation(m_AxisesShaderProgram, "mvMatrix");
-        GLuint projLoc = glGetUniformLocation(m_AxisesShaderProgram, "projMatrix");
-        glUniform1f(lenLoc, m_AxisLength);
-        glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(m_ModelViewMatrix));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(getProjMatrix(m_pWindow)));
+        m_AxisesShader.setFloat("axisLength", m_AxisLength);
+        m_AxisesShader.setMat4("mvMatrix", m_ModelViewMatrix);
+        m_AxisesShader.setMat4("projMatrix", getProjMatrix(m_pWindow));
 
         glBindVertexArray(m_AxisesVao);
         glDrawArrays(GL_LINES, 0, 6);
@@ -1548,62 +1554,62 @@ void Renderer::display(float currentTime)
         // render style for different render program
         RenderStyle style = m_Models[i].style;
         GLenum primitiveType = GL_TRIANGLES;
-        GLuint  program = 0;
+        Shader shader;
         switch (style)
         {
         case PureColorPoints:
             primitiveType = GL_POINTS;
-            program = m_PureColorShaderProgram;
+            shader = m_PureColorShader;
             break;
         case PureColorLines:
             primitiveType = GL_LINES;
-            program = m_PureColorShaderProgram;
+            shader = m_PureColorShader;
             break;
         case PureColorLineStrip:
             primitiveType = GL_LINE_STRIP;
-            program = m_PureColorShaderProgram;
+            shader = m_PureColorShader;
             break;
         case PureColorTriangles:
             primitiveType = GL_TRIANGLES;
-            program = m_PureColorShaderProgram;
+            shader = m_PureColorShader;
             break;
         case VaryingColorPoints:
             primitiveType = GL_POINTS;
-            program = m_VaryingColorShaderProgram;
+            shader = m_VaryingColorShader;
             break;
         case VaryingColorLines:
             primitiveType = GL_LINES;
-            program = m_VaryingColorShaderProgram;
+            shader = m_VaryingColorShader;
             break;
         case VaryingColorLineStrip:
             primitiveType = GL_LINE_STRIP;
-            program = m_VaryingColorShaderProgram;
+            shader = m_VaryingColorShader;
             break;
         case VaryingColorTriangles:
             primitiveType = GL_TRIANGLES;
-            program = m_VaryingColorShaderProgram;
+            shader = m_VaryingColorShader;
             break;
         case SpecificTexture:
             primitiveType = GL_TRIANGLES;
-            program = m_TextureShaderProgram;
+            shader = m_TextureShader;
             break;
         case LightingMaterialTexture:
             primitiveType = GL_TRIANGLES;
             if (m_Models[i].lightingMode == FlatShading || m_Models[i].lightingMode == GouraudShading)
             {
-                program = m_GouraudLightingMaterialTextureShderProgram;
+                shader = m_GouraudMaterialTextureShader;
             }
             else // Phong shading
             {
-                program = m_PhongLightingMaterialTextureShaderProgram;
+                shader = m_PhongMaterialTextureShader;
             }
             break;
         default:
             primitiveType = GL_TRIANGLES;
-            program = m_PureColorShaderProgram;
+            shader = m_PureColorShader;
             break;
         }
-        glUseProgram(program);
+        shader.use();
 
         // backface culling 
         if (m_bEnableCullFace)
@@ -1630,17 +1636,14 @@ void Renderer::display(float currentTime)
         // model-view matrix
         m_ModelViewMatrix = m_ViewMatrix * m_ModelMatrix;
 
-        GLuint mvLoc = glGetUniformLocation(program, "mvMatrix");
-        GLuint projLoc = glGetUniformLocation(program, "projMatrix");
-        glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(m_ModelViewMatrix));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(getProjMatrix(m_pWindow)));
+        shader.setMat4("mvMatrix", m_ModelViewMatrix);
+        shader.setMat4("projMatrix", getProjMatrix(m_pWindow));
         checkOpenGLError();
 
         // input color for pure color shaders
         if (style == PureColorPoints || style == PureColorLineStrip || style == PureColorLines || style == PureColorTriangles)
         {
-            GLuint colorLoc = glGetUniformLocation(program, "inputColor");
-            glUniform4fv(colorLoc, 1, glm::value_ptr(m_Models[i].color));
+            shader.setVec4("inputColor", m_Models[i].color);
         }
         checkOpenGLError();
 
@@ -1649,22 +1652,6 @@ void Renderer::display(float currentTime)
         {
             glActiveTexture(GL_TEXTURE0); // always use texture unit 0
             glBindTexture(GL_TEXTURE_2D, m_Models[i].texture);
-            // todo: what's wroung with texture? how to reset to proper state!
-            // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 100, 100, 0, GL_RGBA, GL_FLOAT, 0);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-            // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-            if (m_Models[i].doMipmapping)
-            {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-                glGenerateMipmap(GL_TEXTURE_2D); // generate mipmapping
-            }
-            if (m_Models[i].doAnisotropicFiltering && GLAD_GL_EXT_texture_filter_anisotropic) // check if anisotropic filtering extension is supported ?
-            {
-                GLfloat anisoSetting = 0.0f;
-                glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
-            }
         }
         checkOpenGLError();
 
@@ -1676,95 +1663,66 @@ void Renderer::display(float currentTime)
             // flat shading and Gouraud shading
             if (m_Models[i].lightingMode == FlatShading || m_Models[i].lightingMode == GouraudShading)
             {
-                GLuint flatLoc = glGetUniformLocation(program, "flatShading");
-                glProgramUniform1i(program, flatLoc, (m_Models[i].lightingMode == FlatShading) ? 1 : 0);
+                shader.setInt("flatShading", (m_Models[i].lightingMode == FlatShading) ? 1 : 0);
             }
             // global ambient
-            GLuint globalAmbLoc = glGetUniformLocation(program, "globalAmbient");
-            glProgramUniform4fv(program, globalAmbLoc, 1, glm::value_ptr(m_GlobalAmbient));
+            shader.setVec4("globalAmbient", m_GlobalAmbient);
+            
             // directional lights
-            GLuint sizeLoc = glGetUniformLocation(program, "directionalLightsSize");
-            glProgramUniform1ui(program, sizeLoc, GLuint(m_DirectionalLights.size()));
+            shader.setUint("directionalLightsSize", GLuint(m_DirectionalLights.size()));
             for (std::size_t j = 0; j < m_DirectionalLights.size(); ++j)
             {
                 glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_DirectionalLights[j].getDirection(), 1.0f));
                 std::string str = "directionalLights[" + std::to_string(j) + "]";
-                GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
-                GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
-                GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
-                GLuint dirLoc = glGetUniformLocation(program, (str + ".direction").c_str());
-                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_DirectionalLights[j].getAmbient()));
-                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_DirectionalLights[j].getDiffuse()));
-                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_DirectionalLights[j].getSpecular()));
-                glProgramUniform3fv(program, dirLoc, 1, glm::value_ptr(directionInViewSpace));
+                shader.setVec4(str + ".ambient", m_DirectionalLights[j].getAmbient());
+                shader.setVec4(str + ".diffuse", m_DirectionalLights[j].getDiffuse());
+                shader.setVec4(str + ".specular", m_DirectionalLights[j].getSpecular());
+                shader.setVec3(str + ".direction", directionInViewSpace);
             }
             // point lights
-            sizeLoc = glGetUniformLocation(program, "pointLightsSize");
-            glProgramUniform1ui(program, sizeLoc, GLuint(m_PointLights.size()));
+            shader.setUint("pointLightsSize", GLuint(m_PointLights.size()));
             for (std::size_t j = 0; j < m_PointLights.size(); ++j)
             {
                 glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_PointLights[j].getLocation(), 1.0f));
                 std::string str = "pointLights[" + std::to_string(j) + "]";
-                GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
-                GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
-                GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
-                GLuint locLoc = glGetUniformLocation(program, (str + ".location").c_str());
-                GLuint constantLoc = glGetUniformLocation(program, (str + ".constant").c_str());
-                GLuint linearLoc = glGetUniformLocation(program, (str + ".linear").c_str());
-                GLuint quadraticLoc = glGetUniformLocation(program, (str + ".quadratic").c_str());
-                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_PointLights[j].getAmbient()));
-                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_PointLights[j].getDiffuse()));
-                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_PointLights[j].getSpecular()));
-                glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(locationInViewSpace));
-                glProgramUniform1f(program, constantLoc, m_PointLights[j].getConstant());
-                glProgramUniform1f(program, linearLoc, m_PointLights[j].getLinear());
-                glProgramUniform1f(program, quadraticLoc, m_PointLights[j].getQuadratic());
+                shader.setVec4(str + ".ambient", m_PointLights[j].getAmbient());
+                shader.setVec4(str + ".diffuse", m_PointLights[j].getDiffuse());
+                shader.setVec4(str + ".specular", m_PointLights[j].getSpecular());
+                shader.setVec3(str + ".location", locationInViewSpace);
+                shader.setFloat(str + ".constant", m_PointLights[j].getConstant());
+                shader.setFloat(str + ".linear", m_PointLights[j].getLinear());
+                shader.setFloat(str + ".quadratic", m_PointLights[j].getQuadratic());
             }
             // spot lights
-            sizeLoc = glGetUniformLocation(program, "spotLightsSize");
-            glProgramUniform1ui(program, sizeLoc, GLuint(m_SpotLights.size()));
+            shader.setUint("spotLightsSize", GLuint(m_SpotLights.size()));
             for (std::size_t j = 0; j < m_SpotLights.size(); ++j)
             {
                 glm::vec3 locationInViewSpace = glm::vec3(m_ViewMatrix * glm::vec4(m_SpotLights[j].getLocation(), 1.0f));
                 glm::vec3 directionInViewSpace = glm::vec3(glm::transpose(glm::inverse(m_ViewMatrix)) * glm::vec4(m_SpotLights[j].getDirection(), 1.0f));
                 std::string str = "spotLights[" + std::to_string(j) + "]";
-                GLuint ambLoc = glGetUniformLocation(program, (str + ".ambient").c_str());
-                GLuint diffLoc = glGetUniformLocation(program, (str + ".diffuse").c_str());
-                GLuint specLoc = glGetUniformLocation(program, (str + ".specular").c_str());
-                GLuint locLoc = glGetUniformLocation(program, (str + ".location").c_str());
-                GLuint dirLoc = glGetUniformLocation(program, (str + ".direction").c_str());
-                GLuint cutoffLoc = glGetUniformLocation(program, (str + ".cutOffAngle").c_str());
-                GLuint exponentLoc = glGetUniformLocation(program, (str + ".strengthFactorExponent").c_str());
-                glProgramUniform4fv(program, ambLoc, 1, glm::value_ptr(m_SpotLights[j].getAmbient()));
-                glProgramUniform4fv(program, diffLoc, 1, glm::value_ptr(m_SpotLights[j].getDiffuse()));
-                glProgramUniform4fv(program, specLoc, 1, glm::value_ptr(m_SpotLights[j].getSpecular()));
-                glProgramUniform3fv(program, locLoc, 1, glm::value_ptr(locationInViewSpace));
-                glProgramUniform3fv(program, dirLoc, 1, glm::value_ptr(directionInViewSpace));
-                glProgramUniform1f(program, cutoffLoc, m_SpotLights[j].getCutOffAngle());
-                glProgramUniform1f(program, exponentLoc, m_SpotLights[j].getStrengthFactorExponent());
+                shader.setVec4(str + ".ambient", m_SpotLights[j].getAmbient());
+                shader.setVec4(str + ".diffuse", m_SpotLights[j].getDiffuse());
+                shader.setVec4(str + ".specular", m_SpotLights[j].getSpecular());
+                shader.setVec3(str + ".location", locationInViewSpace);
+                shader.setVec3(str + ".direction", directionInViewSpace);
+                shader.setFloat(str + ".cutOffAngle", m_SpotLights[j].getCutOffAngle());
+                shader.setFloat(str + ".strengthFactorExponent", m_SpotLights[j].getStrengthFactorExponent());
             }
             // material and texture weight
-            GLuint materialWeightLoc = glGetUniformLocation(program, "materialWeight");
-            glProgramUniform1f(program, materialWeightLoc, m_Models[i].materialWeight);
-            GLuint textureWeightLoc = glGetUniformLocation(program, "textureWeight");
-            glProgramUniform1f(program, textureWeightLoc, m_Models[i].textureWeight);
+            shader.setFloat("materialWeight", m_Models[i].materialWeight);
+            shader.setFloat("textureWeight", m_Models[i].textureWeight);
             // material
             if (m_Models[i].spMaterial)
             {
-                GLuint mAmbLoc = glGetUniformLocation(program, "material.ambient");
-                GLuint mDiffLoc = glGetUniformLocation(program, "material.diffuse");
-                GLuint mSpecLoc = glGetUniformLocation(program, "material.specular");
-                GLuint mShiLoc = glGetUniformLocation(program, "material.shininess");
-                glProgramUniform4fv(program, mAmbLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getAmbient()));
-                glProgramUniform4fv(program, mDiffLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getDiffuse()));
-                glProgramUniform4fv(program, mSpecLoc, 1, glm::value_ptr(m_Models[i].spMaterial->getSpecular()));
-                glProgramUniform1f(program, mShiLoc, m_Models[i].spMaterial->getShininess());
+                shader.setVec4("material.ambient", m_Models[i].spMaterial->getAmbient());
+                shader.setVec4("material.diffuse", m_Models[i].spMaterial->getDiffuse());
+                shader.setVec4("material.specular", m_Models[i].spMaterial->getSpecular());
+                shader.setFloat("material.shininess", m_Models[i].spMaterial->getShininess());
             }
 
             // build the inverse transpose of model-view matrix to transform vertex normal
             glm::mat4 inverseTransposeMvMatrix = glm::transpose(glm::inverse(m_ModelViewMatrix));
-            GLuint nLoc = glGetUniformLocation(program, "normMatrix");
-            glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(inverseTransposeMvMatrix));
+            shader.setMat4("normMatrix", inverseTransposeMvMatrix);
         }
         checkOpenGLError();
 
@@ -1777,6 +1735,7 @@ void Renderer::display(float currentTime)
         {
             glDrawArrays(primitiveType, 0, m_Models[i].verticesCount);
         }
+        glBindVertexArray(0);
         checkOpenGLError();
     }
 }

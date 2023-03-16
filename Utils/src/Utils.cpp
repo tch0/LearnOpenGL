@@ -152,6 +152,64 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     return vfProgram;
 }
 
+GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const char* geometryShader, const std::source_location& loc)
+{
+    // create empty shader object
+    GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint gShader = glCreateShader(GL_GEOMETRY_SHADER);
+    
+    // load glsl source to shader object
+    glShaderSource(vShader, 1, &vertexShader, NULL);
+    glShaderSource(fShader, 1, &fragmentShader, NULL);
+    glShaderSource(gShader, 1, &fragmentShader, NULL);
+
+    // compiler shader obejct
+    glCompileShader(vShader);
+    checkOpenGLError();
+    GLint vertCompiled = GL_FALSE;
+    glGetShaderiv(vShader, GL_COMPILE_STATUS, &vertCompiled);
+    if (vertCompiled != GL_TRUE)
+    {
+        Logger::globalLogger().warning("Vertex shader compilation failed!", loc);
+        printShaderLog(vShader, loc);
+    }
+    glCompileShader(fShader);
+    checkOpenGLError();
+    GLint fragCompiled = GL_FALSE;
+    glGetShaderiv(fShader, GL_COMPILE_STATUS, &fragCompiled);
+    if (fragCompiled != GL_TRUE)
+    {
+        Logger::globalLogger().warning("Fragment shader compilation failed!", loc);
+        printShaderLog(fShader, loc);
+    }
+    glCompileShader(gShader);
+    checkOpenGLError();
+    GLint geometryCompiled = GL_FALSE;
+    glGetShaderiv(gShader, GL_COMPILE_STATUS, &geometryCompiled);
+    if (geometryCompiled != GL_TRUE)
+    {
+        Logger::globalLogger().warning("Geometry shader compilation failed!", loc);
+        printShaderLog(gShader, loc);
+    }
+    
+    // create program, attach shaders to program (in GPU)
+    GLuint vfProgram = glCreateProgram();
+    glAttachShader(vfProgram, vShader);
+    glAttachShader(vfProgram, fShader);
+    glAttachShader(vfProgram, gShader);
+    glLinkProgram(vfProgram);
+    checkOpenGLError();
+    GLint linkStatus = GL_FALSE;
+    glGetProgramiv(vfProgram, GL_LINK_STATUS, &linkStatus);
+    if (linkStatus != GL_TRUE)
+    {
+        Logger::globalLogger().warning("Shader program linking failed!", loc);
+        printProgramLog(vfProgram, loc);
+    }
+    return vfProgram;
+}
+
 // load texture to OpenGL texture object
 GLuint loadTexture(const char* textureImagePath, const std::source_location& loc)
 {

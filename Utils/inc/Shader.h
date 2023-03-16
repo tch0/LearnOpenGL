@@ -1,0 +1,37 @@
+#pragma once
+
+#include <glm/glm.hpp>
+#include <glad/gl.h>
+#include <string>
+
+namespace Utils
+{
+
+class Shader
+{
+private:
+    GLuint m_Id;
+public:
+    Shader();
+    Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "");
+    Shader(const Shader& shader);
+    Shader& operator=(const Shader& shader);
+    void setShaderSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "");
+    GLuint getShaderId();
+    void use();
+    void setBool(const std::string& name, bool value) const;
+    void setInt(const std::string& name, GLint value) const;
+    void setUint(const std::string& name, GLuint value) const;
+    void setFloat(const std::string& name, GLfloat value) const;
+    void setVec2(const std::string& name, const glm::vec2& value) const;
+    void setVec2(const std::string& name, GLfloat x, GLfloat y) const;
+    void setVec3(const std::string& name, const glm::vec3& value) const;
+    void setVec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z) const;
+    void setVec4(const std::string& name, const glm::vec4& value) const;
+    void setVec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w) const;
+    void setMat2(const std::string& name, const glm::mat2& mat) const;
+    void setMat3(const std::string& name, const glm::mat3& mat) const;
+    void setMat4(const std::string& name, const glm::mat4& mat) const;
+};
+
+} // namespace Utils

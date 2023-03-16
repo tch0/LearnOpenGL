@@ -12,6 +12,7 @@
 #include "Model.h"
 #include "Logger.h"
 #include "Light.h"
+#include "Shader.h"
 
 namespace Utils
 {
@@ -122,12 +123,12 @@ private:
     glm::mat4 m_ViewMatrix;
     glm::mat4 m_ModelViewMatrix;
     // predefined rendering programs
-    GLuint m_AxisesShaderProgram;
-    GLuint m_PureColorShaderProgram;
-    GLuint m_VaryingColorShaderProgram;
-    GLuint m_TextureShaderProgram;
-    GLuint m_GouraudLightingMaterialTextureShderProgram;
-    GLuint m_PhongLightingMaterialTextureShaderProgram;
+    Shader m_AxisesShader;
+    Shader m_PureColorShader;
+    Shader m_VaryingColorShader;
+    Shader m_TextureShader;
+    Shader m_GouraudMaterialTextureShader;
+    Shader m_PhongMaterialTextureShader;
     // xyz axis
     GLuint m_AxisesVao;
     GLuint m_AxisesVbo;
