@@ -30,8 +30,10 @@ public:
         VaryingColorLineStrip,      // varying color line strips according to coordinate
         VaryingColorTriangles,      // varying color triangles according to coordinate
         SpecificTexture,            // render to specific texture
-        LightingMaterialTexture     // support lighting, mix texture and material with specific weight
+        LightingMaterialTexture,    // support lighting, mix texture and material with specific weight
+        PhongShadingWithShadow      // Phong shading, but support shadows, only models with this mode will create shadow and affected by shadow
     };
+    // lighting rendering mode only for LightingMaterialTexture style
     enum LightingMode
     {
         FlatShading,            // the old shading mode, do not interpolate, aka patch shading
@@ -52,22 +54,24 @@ private:
         bool doMipmapping = true;
         bool doAnisotropicFiltering = true;
         float textureWeight = 0.0;
-        // material, for LightingMaterial style
+        // material, for LightingMaterialTexture style
         std::unique_ptr<Material> spMaterial = nullptr;
         float materialWeight = 0.0;
-        // lighting mode, for LightingMaterial/LightingTexture style
+        // lighting mode, for LightingMaterialTexture style
         LightingMode lightingMode = FlatShading;
         // rotation attributes
         bool bRotate = false;
         glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
         float rotationRate = 1.0; // means 1 second for 1 radian
-        // OpenGL vbos
-        GLuint indicesVbo;
-        GLuint verticesVbo;
-        GLuint texCoordVbo;
-        GLuint normalVbo;
-        GLuint sTanVbo;
-        GLuint tTanVbo;
+        // vao, one vao per model
+        GLuint vao = 0;
+        // vbos
+        GLuint indicesVbo = 0;
+        GLuint verticesVbo = 0;
+        GLuint texCoordVbo = 0;
+        GLuint normalVbo = 0;
+        GLuint sTanVbo = 0;
+        GLuint tTanVbo = 0;
     };
     // attributes that every window needs one copy
     // workaround for variables that need to be visited in call back function, they must be static, so save them in static hashtable for every window.
@@ -117,8 +121,6 @@ private:
     glm::mat4 m_ModelMatrix;
     glm::mat4 m_ViewMatrix;
     glm::mat4 m_ModelViewMatrix;
-    // vao 
-    std::vector<GLuint> m_VaoVec;
     // predefined rendering programs
     GLuint m_AxisesShaderProgram;
     GLuint m_PureColorShaderProgram;
@@ -127,6 +129,7 @@ private:
     GLuint m_GouraudLightingMaterialTextureShderProgram;
     GLuint m_PhongLightingMaterialTextureShaderProgram;
     // xyz axis
+    GLuint m_AxisesVao;
     GLuint m_AxisesVbo;
     bool m_bEnableAxises = true;
     float m_AxisLength = 100.0f;
@@ -145,7 +148,7 @@ public:
     // add model to render, return it's index
     std::size_t addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle);
 
-    // add lighting to render, affect those objects with lighting modes (LightingMaterial/LightingTexture)
+    // add lighting to render, affect those objects with lighting modes
     void setGlobalAmbientLight(glm::vec4 ambient);
     void addDirectionalLight(const DirectionalLight& light);
     void addDirectionalLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 specular, glm::vec3 direction);
@@ -164,12 +167,12 @@ public:
     void setRenderStyle(std::size_t modelIndex, RenderStyle renderStyle);
     // set render color, just for pure color style, default to pure white
     void setColor(std::size_t modelIndex, glm::vec4 color);
-    // set texture for model, just for SpecificTexture style
+    // set texture for model, for SpecificTexture/LightingMaterialTexture style
     void setTexture(std::size_t modelIndex, const char* textureImagePath, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
     void setTexture(std::size_t modelIndex, GLuint textureId, float weight = 1.0, bool doMipmapping = true, bool doAnisotropicFiltering = true);
-    // set material for model, for LightingMaterial style
+    // set material for model, for LightingMaterialTexture style
     void setMaterial(std::size_t modelIndex, const Material& material, float weight = 1.0);
-    // set lighting mode of model, default to FlatShading
+    // set lighting mode of model, for LightingMaterialTexture style, default to FlatShading
     void setLightingMode(std::size_t modelIndex, LightingMode mode);
 private:
     void checkForModelAttributes();

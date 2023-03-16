@@ -3,7 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <utility>
-#include "Utils.h"
+#include <Utils.h>
 
 namespace Utils
 {
@@ -684,6 +684,374 @@ void main()
 }
 )glsl";
 
+// ================================ Phong shading with lighting & material & texture ================================ 
+const char* shadowRound1VertexShader = R"glsl(
+#version 430
+layout (location = 0) in vec3 vertexPos;
+uniform mat4 shadowMVP;
+void main()
+{
+    gl_Position = shadowMVP * vec4(vertexPos, 1.0);
+}
+)glsl";
+
+const char* shadowRound1FragmentShader = R"glsl(
+#version 430
+// out vec4 fragColor;
+void main()
+{
+    // fragColor = vec4(1.0, 0.0, 0.0, 0.0); // just for test
+}
+)glsl";
+
+const char* shadowRound2VertexShader = R"glsl(
+#version 430
+// different max light numbers, must be same as the number in the Renderer class !
+#define MAX_POINT_LIGHT_SIZE 10
+#define MAX_DIRECTIONAL_LIGHT_SIZE 10
+#define MAX_SPOT_LIGHT_SIZE 10
+#define MAX_SHADOW_TEXTURE_SIZE 5 // todo
+struct DirectionalLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 direction; // in view space
+};
+struct PointLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    // for attenuation factor
+    float constant;
+    float linear;
+    float quadratic;
+};
+struct SpotLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    vec3 direction; // in view space
+    float cutOffAngle;
+    float strengthFactorExponent;
+};
+struct Material
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    float shininess;
+};
+layout (location = 0) in vec3 vertexPos;        // vertex buffer
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 2) in vec3 vertexNormal;     // normals of vertices
+// texture sampler
+layout (binding = 0) uniform sampler2D samp;
+// lights
+uniform vec4 globalAmbient;
+uniform uint directionalLightsSize;
+uniform uint pointLightsSize;
+uniform uint spotLightsSize;
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHT_SIZE];
+uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform SpotLight spotLights[MAX_SPOT_LIGHT_SIZE];
+// material
+uniform Material material;
+// matrices
+uniform mat4 mvMatrix;      // model-view matrix
+uniform mat4 projMatrix;    // projection matrix
+uniform mat4 normMatrix;    // for transformation of normal vector
+// material and texture weight
+uniform float materialWeight;
+uniform float textureWeight;
+// shadow MVP matrix and shadow textures
+uniform mat4 shadowMVPs[MAX_SHADOW_TEXTURE_SIZE];
+// todo: more shadow texture unit here, add 5 for test for now !
+layout (binding = 10) uniform sampler2DShadow shadowTexture0;
+layout (binding = 11) uniform sampler2DShadow shadowTexture1;
+layout (binding = 12) uniform sampler2DShadow shadowTexture2;
+layout (binding = 13) uniform sampler2DShadow shadowTexture3;
+layout (binding = 14) uniform sampler2DShadow shadowTexture4;
+
+out vec3 varyingNormal;
+out vec3 varyingVertexPos;
+// varying light direction (from vertex to light source) for different light sources (in view space)
+out vec3 varyingPointLightDirections[MAX_POINT_LIGHT_SIZE];
+out vec3 varyingSpotLightDirections[MAX_SPOT_LIGHT_SIZE];
+out vec2 tc;
+// shadow coordinates output
+out vec4 shadowCoord[MAX_SHADOW_TEXTURE_SIZE];
+
+void main()
+{
+    varyingVertexPos = (mvMatrix * vec4(vertexPos, 1.0)).xyz;
+    varyingNormal = (normMatrix * vec4(vertexNormal, 1.0)).xyz;
+    for (uint i = 0; i < pointLightsSize; i++)
+    {
+        varyingPointLightDirections[i] = pointLights[i].location - varyingVertexPos;
+    }
+    for (uint i = 0; i < spotLightsSize; i++)
+    {
+        varyingSpotLightDirections[i] = spotLights[i].location - varyingVertexPos;
+    }
+    gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
+    // texture coordinates
+    tc = texureCoord;
+    // shadow coordinates
+    uint shadowSize = directionalLightsSize + pointLightsSize + spotLightsSize;
+    for (uint i = 0; i < shadowSize; i++)
+    {
+        shadowCoord[i] = shadowMVPs[i] * vec4(vertexPos, 1.0);
+    }
+}
+)glsl";
+
+const char* shadowRound2FragmentShader = R"glsl(
+#version 430
+// different max light numbers, must be same as the number in the Renderer class !
+#define MAX_POINT_LIGHT_SIZE 10
+#define MAX_DIRECTIONAL_LIGHT_SIZE 10
+#define MAX_SPOT_LIGHT_SIZE 10
+#define MAX_SHADOW_TEXTURE_SIZE 5 // todo
+struct DirectionalLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 direction; // in view space
+};
+struct PointLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    // for attenuation factor
+    float constant;
+    float linear;
+    float quadratic;
+};
+struct SpotLight
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec3 location; // in view space
+    vec3 direction; // in view space
+    float cutOffAngle;
+    float strengthFactorExponent;
+};
+struct Material
+{
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    float shininess;
+};
+layout (location = 0) in vec3 vertexPos;        // vertex buffer
+layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 2) in vec3 vertexNormal;     // normals of vertices
+// texture sampler
+layout (binding = 0) uniform sampler2D samp;
+// lights
+uniform vec4 globalAmbient;
+uniform uint directionalLightsSize;
+uniform uint pointLightsSize;
+uniform uint spotLightsSize;
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHT_SIZE];
+uniform PointLight pointLights[MAX_POINT_LIGHT_SIZE];
+uniform SpotLight spotLights[MAX_SPOT_LIGHT_SIZE];
+// material
+uniform Material material;
+// matrices
+uniform mat4 mvMatrix;      // model-view matrix
+uniform mat4 projMatrix;    // projection matrix
+uniform mat4 normMatrix;    // for transformation of normal vector
+// material and texture weight
+uniform float materialWeight;
+uniform float textureWeight;
+// shadow MVP matrix and shadow textures
+uniform mat4 shadowMVPs[MAX_SHADOW_TEXTURE_SIZE];
+// todo: more shadow texture unit here, add 5 for test for now !
+layout (binding = 10) uniform sampler2DShadow shadowTextureSampler0;
+layout (binding = 11) uniform sampler2DShadow shadowTextureSampler1;
+layout (binding = 12) uniform sampler2DShadow shadowTextureSampler2;
+layout (binding = 13) uniform sampler2DShadow shadowTextureSampler3;
+layout (binding = 14) uniform sampler2DShadow shadowTextureSampler4;
+
+in vec3 varyingNormal;
+in vec3 varyingVertexPos;
+// varying light direction (from vertex to light source) for different light sources (in view space)
+in vec3 varyingPointLightDirections[MAX_POINT_LIGHT_SIZE];
+in vec3 varyingSpotLightDirections[MAX_SPOT_LIGHT_SIZE];
+in vec2 tc;
+// shadow coordinates input
+in vec4 shadowCoord[MAX_SHADOW_TEXTURE_SIZE];
+
+out vec4 fragColor;
+
+vec3 ambient;
+vec3 diffuse;
+vec3 materialSpecular;
+vec3 textureSpecular;
+uint shadowIndex;
+
+// shadowIndex, shadowCoord, and shadow texture samplers as input
+float myTextureProj()
+{
+    switch (shadowIndex)
+    {
+    case 0: return textureProj(shadowTextureSampler0, shadowCoord[shadowIndex]);
+    case 1: return textureProj(shadowTextureSampler1, shadowCoord[shadowIndex]);
+    case 2: return textureProj(shadowTextureSampler2, shadowCoord[shadowIndex]);
+    case 3: return textureProj(shadowTextureSampler3, shadowCoord[shadowIndex]);
+    case 4: return textureProj(shadowTextureSampler4, shadowCoord[shadowIndex]);
+    }
+    return 1.0f; // not in shadow
+}
+
+void calculateDirectionalLight(DirectionalLight light, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(-light.direction);
+    // visual vector (from vertex to eye), equals to the nagative vertex position in view space
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // the ADS weight of vertex
+    ambient += light.ambient.xyz;
+    // deal with shadow
+    float notInShadow = myTextureProj();
+    if (notInShadow == 1.0)
+    {
+        diffuse += light.diffuse.xyz * max(dot(N, L), 0.0);
+        materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess);
+        // shininess will be always 1.0 for texture, is this proper?
+        textureSpecular += light.specular.xyz * max(dot(R, V), 0.0);
+    }
+}
+
+void calculatePointLight(PointLight light, uint index, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(varyingPointLightDirections[index]);
+    // visual vector (from vertex to eye) equals to the negative vertex position in view space
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // attenuation factor
+    float distance = length(light.location - P);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * distance * distance);
+    // the ADS weight of vertex
+    ambient += light.ambient.xyz * attenuation;
+    // deal with shadow
+    float notInShadow = myTextureProj();
+    if (notInShadow == 1.0)
+    {
+        diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * attenuation;
+        materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * attenuation;
+        // shininess will be always 1.0 for texture, is this proper?
+        textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * attenuation;
+    }
+}
+
+void calculateSpotLight(SpotLight light, uint index, vec3 P, vec3 N)
+{
+    // light vector (from vertex to light source) in view space
+    vec3 L = normalize(varyingSpotLightDirections[index]);
+    // visual vector (from vertex to eye)
+    vec3 V = normalize(-P);
+    // reflect vector
+    vec3 R = reflect(-L, N);
+    // the angle between visual vector and the center of spot light
+    float cosOffAxisAngle = dot(-L, normalize(light.direction));
+    // strength factor
+    float strengthFactor = (cosOffAxisAngle > cos(light.cutOffAngle)) ? pow(cosOffAxisAngle, light.strengthFactorExponent) : 0;
+    // attenuation factor: no attenuation for now, may be model it as point light
+    // ADS weight of vertex
+    ambient += light.ambient.xyz * strengthFactor;
+    // deal with shadow
+    float notInShadow = myTextureProj();
+    if (notInShadow == 1.0)
+    {
+        diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * strengthFactor;
+        materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * strengthFactor;
+        // shininess will be always 1.0 for texture, is this proper?
+        textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * strengthFactor;
+    }
+}
+
+void main()
+{
+    // initialization
+    ambient = vec3(0.0, 0.0, 0.0);
+    diffuse = vec3(0.0, 0.0, 0.0);
+    materialSpecular = vec3(0.0, 0.0, 0.0);
+    textureSpecular = vec3(0.0, 0.0, 0.0);
+    shadowIndex = 0;
+
+    // global ambient
+    ambient += globalAmbient.xyz;
+    // directional lights
+    for (uint i = 0; i < directionalLightsSize; i++, shadowIndex++)
+    {
+        calculateDirectionalLight(directionalLights[i], varyingVertexPos, varyingNormal);
+    }
+    // point lights
+    for (uint i = 0; i < pointLightsSize; i++, shadowIndex++)
+    {
+        calculatePointLight(pointLights[i], i, varyingVertexPos, varyingNormal);
+    }
+    // spot lights
+    for (uint i = 0; i < spotLightsSize; i++, shadowIndex++)
+    {
+        calculateSpotLight(spotLights[i], i, varyingVertexPos, varyingNormal);
+    }
+    // result
+    fragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    if (textureWeight != 0.0)
+    {
+        fragColor += textureWeight * (texture(samp, tc) * vec4(0.3 * ambient + 0.4 * diffuse + 0.4 * textureSpecular, 1.0));
+    }
+    if (materialWeight != 0.0)
+    {
+        fragColor += materialWeight * vec4(material.ambient.xyz * ambient + material.diffuse.xyz * diffuse + material.specular.xyz * materialSpecular, 1.0);
+    }
+}
+)glsl";
+
+const char* shadowDebugVertexShader = R"glsl(
+#version 430
+layout (location = 0) in vec3 vertexPos;
+layout (location = 1) in vec2 textureCoord;
+
+out vec2 tc;
+
+void main()
+{
+    tc = textureCoord;
+    gl_Position = vec4(vertexPos, 1.0);
+}
+)glsl";
+
+const char* shadowDebugFragmentShader = R"glsl(
+#version 430
+uniform sampler2D depthTexture;
+
+in vec2 tc;
+out vec4 fragColor;
+
+void main()
+{
+    float depthValue = texture(depthTexture, tc).r;
+    fragColor = vec4(vec3(depthValue), 1.0);
+}
+)glsl";
+
 // ======================================================= Renderer ==============================================
 Renderer::Renderer(const char* windowTitle, int width, int height, float axisLength)
     : m_AxisLength(axisLength)
@@ -712,11 +1080,6 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
         std::exit(-1);
     }
     glfwSwapInterval(1);
-
-    // vao, vbos are added when call addModel
-    m_VaoVec.resize(1);
-    glGenVertexArrays(1, &m_VaoVec[0]);
-    glBindVertexArray(m_VaoVec[0]);
 
     // shaders
     m_AxisesShaderProgram = createShaderProgramFromSource(axisesVertexShader, axisesFragmentShader);
@@ -794,9 +1157,16 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
         0.0f, -m_AxisLength, 0.0f, 0.0f, m_AxisLength, 0.0f,
         0.0f, 0.0f, -m_AxisLength, 0.0f, 0.0f, m_AxisLength
     };
+    glGenVertexArrays(1, &m_AxisesVao);
+    glBindVertexArray(m_AxisesVao);
     glGenBuffers(1, &m_AxisesVbo);
     glBindBuffer(GL_ARRAY_BUFFER, m_AxisesVbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(axisesCoords), axisesCoords, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
+    checkOpenGLError();
 }
 
 Renderer::~Renderer()
@@ -825,8 +1195,16 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
     ModelAttributes& attr = m_Models.back();
     attr.spModel = spModel;
     attr.style = renderStyle;
-    attr.indicesVbo = attr.verticesVbo = attr.texCoordVbo = attr.normalVbo = attr.sTanVbo = attr.tTanVbo = 0;
+    if (renderStyle == PhongShadingWithShadow)
+    {
+        attr.lightingMode = PhongShading;
+    }
 
+    // vao
+    glGenVertexArrays(1, &attr.vao);
+    glBindVertexArray(attr.vao);
+
+    // vbos
     if (spModel->supplyIndices() && spModel->supplyVertices())
     {
         // ensuring the assumptions we depend on are valid.
@@ -841,16 +1219,21 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
         // indices
         glBindBuffer(GL_ARRAY_BUFFER, attr.indicesVbo);
         glBufferData(GL_ARRAY_BUFFER, indices.size() * sizeof(int), indices.data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, attr.indicesVbo);
         // vertices
         glBindBuffer(GL_ARRAY_BUFFER, attr.verticesVbo);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
-        
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray(0);
+
         if (spModel->supplyTexCoords())
         {
             std::vector<glm::vec2> texCoords = spModel->getTexCoords();
             glGenBuffers(1, &attr.texCoordVbo);
             glBindBuffer(GL_ARRAY_BUFFER, attr.texCoordVbo);
             glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(glm::vec2), texCoords.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(1);
         }
         if (spModel->supplyNormals())
         {
@@ -858,6 +1241,8 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
             glGenBuffers(1, &attr.normalVbo);
             glBindBuffer(GL_ARRAY_BUFFER, attr.normalVbo);
             glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), normals.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(2);
         }
         if (spModel->supplyTangents())
         {
@@ -866,9 +1251,13 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
             glGenBuffers(1, &attr.sTanVbo);
             glGenBuffers(1, &attr.tTanVbo);
             glBindBuffer(GL_ARRAY_BUFFER, attr.sTanVbo);
-            glBindBuffer(GL_ARRAY_BUFFER, attr.tTanVbo);
             glBufferData(GL_ARRAY_BUFFER, sTanVec.size() * sizeof(glm::vec3), sTanVec.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(3);
+            glBindBuffer(GL_ARRAY_BUFFER, attr.tTanVbo);
             glBufferData(GL_ARRAY_BUFFER, tTanVec.size() * sizeof(glm::vec3), tTanVec.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(4);
         }
     }
     else if (spModel->supplyVertices())
@@ -878,12 +1267,17 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
         glGenBuffers(1, &attr.verticesVbo);
         glBindBuffer(GL_ARRAY_BUFFER, attr.verticesVbo);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray(0);
+        
         if (spModel->supplyTexCoords())
         {
             std::vector<float> texCoords = spModel->getTexCoordsArray();
             glGenBuffers(1, &attr.texCoordVbo);
             glBindBuffer(GL_ARRAY_BUFFER, attr.texCoordVbo);
             glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(float), texCoords.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(1);
         }
         if (spModel->supplyNormals())
         {
@@ -891,6 +1285,8 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
             glGenBuffers(1, &attr.normalVbo);
             glBindBuffer(GL_ARRAY_BUFFER, attr.normalVbo);
             glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(float), normals.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(2);
         }
         if (spModel->supplyTangents())
         {
@@ -899,11 +1295,17 @@ std::size_t Renderer::addModel(std::shared_ptr<Model> spModel, RenderStyle rende
             glGenBuffers(1, &attr.sTanVbo);
             glGenBuffers(1, &attr.tTanVbo);
             glBindBuffer(GL_ARRAY_BUFFER, attr.sTanVbo);
-            glBindBuffer(GL_ARRAY_BUFFER, attr.tTanVbo);
             glBufferData(GL_ARRAY_BUFFER, sTanVec.size() * sizeof(float), sTanVec.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(3);
+            glBindBuffer(GL_ARRAY_BUFFER, attr.tTanVbo);
             glBufferData(GL_ARRAY_BUFFER, tTanVec.size() * sizeof(float), tTanVec.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(4);
         }
     }
+    glBindVertexArray(0);
+    checkOpenGLError();
     return m_Models.size() - 1;
 }
 
@@ -1011,7 +1413,7 @@ void Renderer::setColor(std::size_t modelIndex, glm::vec4 color)
     m_Models[modelIndex].color = color;
 }
 
-// set texture for model, just for SpecificTexture style
+// set texture for model, just for SpecificTexture/LightingMaterialTexture style
 void Renderer::setTexture(std::size_t modelIndex, const char* textureImagePath, float weight, bool doMipmapping, bool doAnisotropicFiltering)
 {
     assert(modelIndex < m_Models.size());
@@ -1029,7 +1431,7 @@ void Renderer::setTexture(std::size_t modelIndex, GLuint textureId, float weight
     m_Models[modelIndex].doAnisotropicFiltering = doAnisotropicFiltering;
 }
 
-// set material for model, for LightingMaterial style
+// set material for model, for LightingMaterialTexture style
 void Renderer::setMaterial(std::size_t modelIndex, const Material& material, float weight)
 {
     assert(modelIndex < m_Models.size());
@@ -1124,12 +1526,11 @@ void Renderer::drawAxises()
         glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(m_ModelViewMatrix));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(getProjMatrix(m_pWindow)));
 
-        glBindBuffer(GL_ARRAY_BUFFER, m_AxisesVbo);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        glEnableVertexAttribArray(0);
-
+        glBindVertexArray(m_AxisesVao);
         glDrawArrays(GL_LINES, 0, 6);
+        glBindVertexArray(0);
     }
+    checkOpenGLError();
 }
 
 // display models
@@ -1137,7 +1538,7 @@ void Renderer::display(float currentTime)
 {
     // clear background to black during every rendering
     glClear(GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     drawAxises();
@@ -1214,6 +1615,7 @@ void Renderer::display(float currentTime)
         // depth test
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
+        checkOpenGLError();
 
         // model matrix
         // rotation
@@ -1232,6 +1634,7 @@ void Renderer::display(float currentTime)
         GLuint projLoc = glGetUniformLocation(program, "projMatrix");
         glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(m_ModelViewMatrix));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(getProjMatrix(m_pWindow)));
+        checkOpenGLError();
 
         // input color for pure color shaders
         if (style == PureColorPoints || style == PureColorLineStrip || style == PureColorLines || style == PureColorTriangles)
@@ -1239,43 +1642,18 @@ void Renderer::display(float currentTime)
             GLuint colorLoc = glGetUniformLocation(program, "inputColor");
             glUniform4fv(colorLoc, 1, glm::value_ptr(m_Models[i].color));
         }
-
-        // draw
-        if (m_Models[i].spModel->supplyVertices())
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, m_Models[i].verticesVbo);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(0);
-        }
-        if (m_Models[i].spModel->supplyTexCoords())
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, m_Models[i].texCoordVbo);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(1);
-        }
-        if (m_Models[i].spModel->supplyNormals())
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, m_Models[i].normalVbo);
-            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(2);
-        }
-        if (m_Models[i].spModel->supplyTangents())
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, m_Models[i].sTanVbo);
-            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(3);
-            glBindBuffer(GL_ARRAY_BUFFER, m_Models[i].tTanVbo);
-            glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(4);
-        }
+        checkOpenGLError();
 
         // texture
-        if (style == SpecificTexture || style == LightingMaterialTexture)
+        if (style == SpecificTexture)
         {
             glActiveTexture(GL_TEXTURE0); // always use texture unit 0
             glBindTexture(GL_TEXTURE_2D, m_Models[i].texture);
+            // todo: what's wroung with texture? how to reset to proper state!
+            // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 100, 100, 0, GL_RGBA, GL_FLOAT, 0);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
             if (m_Models[i].doMipmapping)
             {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -1284,10 +1662,11 @@ void Renderer::display(float currentTime)
             if (m_Models[i].doAnisotropicFiltering && GLAD_GL_EXT_texture_filter_anisotropic) // check if anisotropic filtering extension is supported ?
             {
                 GLfloat anisoSetting = 0.0f;
-                glGetFloatv(GL_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
-                glTextureParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
+                glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
             }
         }
+        checkOpenGLError();
 
         // lighting and material
         if (style == LightingMaterialTexture)
@@ -1387,16 +1766,18 @@ void Renderer::display(float currentTime)
             GLuint nLoc = glGetUniformLocation(program, "normMatrix");
             glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(inverseTransposeMvMatrix));
         }
+        checkOpenGLError();
 
+        glBindVertexArray(m_Models[i].vao);
         if (m_Models[i].spModel->supplyIndices())
         {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_Models[i].indicesVbo);
             glDrawElements(primitiveType, m_Models[i].verticesCount, GL_UNSIGNED_INT, 0);
         }
         else
         {
             glDrawArrays(primitiveType, 0, m_Models[i].verticesCount);
         }
+        checkOpenGLError();
     }
 }
 
