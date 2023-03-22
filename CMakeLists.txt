@@ -35,11 +35,6 @@ if (NOT format_supported)
     message("## <format> is not support on your compiler yet, use fmt library instead!")
 endif()
 
-list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_std_20 cxx20_supported)
-if (cxx20_supported EQUAL -1)
-    message("C++ 20 is not supported!")
-endif()
-
 # 3rd-party libraries:
 #       static library: glfw glad soil2
 #       header only: glm
