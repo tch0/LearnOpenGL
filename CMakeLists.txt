@@ -6,6 +6,8 @@ project (LearnOpenGL
     LANGUAGES CXX
 )
 
+include(CheckCXXSourceCompiles)
+
 # general compiler flags, C++ standard, warnings, etc.
 add_library(general_cxx_compiler_flags INTERFACE)
 # C++ standard
@@ -25,6 +27,19 @@ target_compile_options(extra_cxx_compiler_flags INTERFACE
     "$<${gcc_like_cxx}:$<BUILD_INTERFACE:-Wno-volatile>>" # for glm headers
 )
 
+# check format is supported or not on your compiler, use fmt library if not supported yet!
+add_library(format_bridge INTERFACE)
+check_cxx_source_compiles("#include <format>\nint main() { return 0; }" format_supported)
+if (NOT format_supported)
+    target_include_directories(format_bridge INTERFACE ${CMAKE_SOURCE_DIR}/3rdparty-install/include/formatbridge)
+    message("## <format> is not support on your compiler yet, use fmt library instead!")
+endif()
+
+list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_std_20 cxx20_supported)
+if (cxx20_supported EQUAL -1)
+    message("C++ 20 is not supported!")
+endif()
+
 # 3rd-party libraries:
 #       static library: glfw glad soil2
 #       header only: glm
@@ -36,6 +51,24 @@ if (MINGW OR MSVC)
 else() # for Unix
     list(APPEND essential_libs GL X11 pthread dl)
 endif()
+
+# define a internal static library
+function(define_a_static_lib target sources)
+    set(sources ${ARGV})
+    list(POP_FRONT sources)
+    add_library(${target} STATIC ${sources})
+    target_include_directories(${target} PUBLIC ${CMAKE_SOURCE_DIR}/3rdparty-install/include)
+    target_link_directories(${target} PUBLIC ${CMAKE_SOURCE_DIR}/3rdparty-install/lib)
+    target_link_libraries(${target}
+        PRIVATE
+            general_cxx_compiler_flags
+            extra_cxx_compiler_flags
+        PUBLIC
+            ${3rdparty_libs}
+            ${essential_libs}
+            format_bridge
+    )
+endfunction()
 
 # configuration of an executable
 function(opengl_instance target)
@@ -50,6 +83,7 @@ function(opengl_instance target)
             Utils # the link order matters on gcc, Utils depends on 3rdparty libraries, so Utils must be ahead of 3rd parties
             ${3rdparty_libs}
             ${essential_libs}
+            format_bridge
     )
 endfunction()
 

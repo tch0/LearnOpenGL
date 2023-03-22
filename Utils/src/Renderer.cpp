@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <utility>
+#include <format>
 #include <Utils.h>
 
 namespace Utils
@@ -1302,7 +1303,7 @@ void Renderer::run()
         GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE)
         {
-            Logger::globalLogger().warning("Shadow texture frame buffer status error: " + std::to_string(status));
+            Logger::globalLogger().warning(std::format("Shadow texture frame buffer status error: {}", status));
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -1448,7 +1449,7 @@ void Renderer::addDirectionalLight(const DirectionalLight& light)
 {
     if (m_DirectionalLights.size() == MAX_DIRECTIONAL_LIGHT_SIZE)
     {
-        Utils::Logger::globalLogger().warning("Directional light sources number exceed the limit of "s + std::to_string(MAX_DIRECTIONAL_LIGHT_SIZE) + "!");
+        Utils::Logger::globalLogger().warning(std::format("Directional light sources number exceed the limit of {}!", MAX_DIRECTIONAL_LIGHT_SIZE));
     }
     else
     {
@@ -1459,7 +1460,7 @@ void Renderer::addDirectionalLight(glm::vec4 ambient, glm::vec4 diffuse, glm::ve
 {
     if (m_DirectionalLights.size() == MAX_DIRECTIONAL_LIGHT_SIZE)
     {
-        Utils::Logger::globalLogger().warning("Directional light sources number exceed the limit of "s + std::to_string(MAX_DIRECTIONAL_LIGHT_SIZE) + "!");
+        Utils::Logger::globalLogger().warning(std::format("Directional light sources number exceed the limit of {}!", MAX_DIRECTIONAL_LIGHT_SIZE));
     }
     else
     {
@@ -1470,7 +1471,7 @@ void Renderer::addPointLight(const PointLight& light)
 {
     if (m_PointLights.size() == MAX_POINT_LIGHT_SIZE)
     {
-        Utils::Logger::globalLogger().warning("Point light sources number exceed the limit of "s + std::to_string(MAX_POINT_LIGHT_SIZE) + "!");
+        Utils::Logger::globalLogger().warning(std::format("Point light sources number exceed the limit of {}!", MAX_POINT_LIGHT_SIZE));
     }
     else
     {
@@ -1481,7 +1482,7 @@ void Renderer::addPointLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 spe
 {
     if (m_PointLights.size() == MAX_POINT_LIGHT_SIZE)
     {
-        Utils::Logger::globalLogger().warning("Point light sources number exceed the limit of "s + std::to_string(MAX_POINT_LIGHT_SIZE) + "!");
+        Utils::Logger::globalLogger().warning(std::format("Point light sources number exceed the limit of {}!", MAX_POINT_LIGHT_SIZE));
     }
     else
     {
@@ -1492,7 +1493,7 @@ void Renderer::addSpotLight(const SpotLight& light)
 {
     if (m_SpotLights.size() == MAX_SPOT_LIGHT_SIZE)
     {
-        Utils::Logger::globalLogger().warning("Spot light sources number exceed the limit of "s + std::to_string(MAX_SPOT_LIGHT_SIZE) + "!");
+        Utils::Logger::globalLogger().warning(std::format("Spot light sources number exceed the limit of {}!", MAX_SPOT_LIGHT_SIZE));
     }
     else
     {
@@ -1503,7 +1504,7 @@ void Renderer::addSpotLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 spec
 {
     if (m_SpotLights.size() == MAX_SPOT_LIGHT_SIZE)
     {
-        Utils::Logger::globalLogger().warning("Spot light sources number exceed the limit of "s + std::to_string(MAX_SPOT_LIGHT_SIZE) + "!");
+        Utils::Logger::globalLogger().warning(std::format("Spot light sources number exceed the limit of {}!", MAX_SPOT_LIGHT_SIZE));
     }
     else
     {
@@ -1518,6 +1519,12 @@ void Renderer::setFaceCullingAttribute(bool enable, GLenum mode, GLenum front)
     m_FaceCullingMode = mode;
     m_FrontFace = front;
 } 
+
+// set PCF(Percentage Closer Filtering) mode, for soft shadow, default to NoPCF, only affect models with PhongShadingWithShadow style
+void Renderer::setPCFMode(PCFMode mode)
+{
+    m_PCFMode = mode;
+}
 
 // set model attributes
 // set rotatoin attributes, default to false
@@ -1595,7 +1602,7 @@ void Renderer::checkForModelAttributes()
         {
             if (!m_Models[i].spModel->supplyNormals())
             {
-                Utils::Logger::globalLogger().warning("Model " + std::to_string(i) + " set to LightingMaterialTexture render style but normals are not supplied.");
+                Utils::Logger::globalLogger().warning(std::format("Model {} set to LightingMaterialTexture render style but normals are not supplied.", i));
             }
         }
     }
@@ -1674,6 +1681,12 @@ void Renderer::drawShadowTextures(float currentTime)
 {
     int width = 0, height = 0;
     glfwGetFramebufferSize(m_pWindow, &width, &height);
+    // deal with minimization
+    if (width == 0 || height == 0)
+    {
+        width = 1920;
+        height = 1080;
+    }
     Shader shader = m_SimpleShadowDepthShader;
     shader.use();
     std::size_t shadowIndex = 0;

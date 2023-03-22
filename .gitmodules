@@ -14,3 +14,7 @@
 	path = 3rdparty/glad
 	url = https://github.com/tch0/cppglad2
 	branch = master
+[submodule "3rdparty/fmt"]
+	path = 3rdparty/fmt
+	url = https://github.com/fmtlib/fmt
+	branch = master

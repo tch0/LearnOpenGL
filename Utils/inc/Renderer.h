@@ -41,6 +41,13 @@ public:
         GouraudShading,         // one way of smooth shading
         PhongShading            // another way of smooth shading
     };
+    // Percentage Closer Filtering/PCF mode to generate soft shadow, only for PhongShadingWithShadow mode.
+    enum PCFMode
+    {
+        NoPCF,              // disable PCF
+        Sample64,           // sampling for near 64 texels
+        Sample4Dithered     // sampling for near dithered 4 texels
+    };
 private:
     struct ModelAttributes
     {
@@ -144,12 +151,13 @@ private:
     std::vector<DirectionalLight> m_DirectionalLights;
     std::vector<PointLight> m_PointLights;
     std::vector<SpotLight> m_SpotLights;
-    // shadow frame buffers, shadow textures
+    // shadow related variables: shadow textuers, shadow buffers, etc
     std::vector<GLuint> m_ShadowTextures;
     std::vector<GLuint> m_ShadowBuffers;
     std::vector<glm::mat4> m_ShadowVPs;
     GLuint m_FirstShadowTextureUnit = GL_TEXTURE10; // shadow texture begin from texture unit 10
     glm::mat4 m_BMatrix;
+    PCFMode m_PCFMode = NoPCF;
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
@@ -171,6 +179,9 @@ public:
 
     // set face culling attributes, defualt to true/GL_BACK/GL_CCW
     void setFaceCullingAttribute(bool enable, GLenum mode, GLenum front); 
+    
+    // set PCF(Percentage Closer Filtering) mode, for soft shadow, default to NoPCF, only affect models with PhongShadingWithShadow style
+    void setPCFMode(PCFMode mode);
 
     // set model attributes
     // set rotatoin attributes, default to false

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <format>
 #include <soil2/SOIL2.h>
 #include <Logger.h>
 
@@ -20,7 +21,7 @@ void printShaderLog(GLuint shader, const std::source_location& loc)
     {
         log = new char[len];
         glGetShaderInfoLog(shader, len, &chWritten, log);
-        Logger::globalLogger().info("Shader Info Log: \n"s + log, loc);
+        Logger::globalLogger().info(std::format("Shader Info Log: \n{}", log), loc);
         delete[] log;
     }
 }
@@ -35,7 +36,7 @@ void printProgramLog(GLuint program, const std::source_location& loc)
     {
         log = new char[len];
         glGetProgramInfoLog(program, len, &chWritten, log);
-        Logger::globalLogger().info("Shader Info Log: \n"s + log, loc);
+        Logger::globalLogger().info(std::format("Shader Info Log: \n{}", log), loc);
         delete[] log;
     }
 }
@@ -70,7 +71,7 @@ bool checkOpenGLError(const std::source_location& loc)
     GLenum glErr = glGetError();
     while (glErr != GL_NO_ERROR)
     {
-        Logger::globalLogger().warning("glError: "s + glErrorToString(glErr), loc);
+        Logger::globalLogger().warning(std::format("OpenGL error: {}", glErrorToString(glErr)), loc);
         foundError = true;
         glErr = glGetError();
     }
@@ -84,7 +85,7 @@ std::string readShaderSource(const char* filePath, const std::source_location& l
     std::ifstream fin(filePath);
     if (!fin.is_open())
     {
-        Logger::globalLogger().warning("Shader file "s + filePath + " does not exist!"s, loc);
+        Logger::globalLogger().warning(std::format("Shader file {} does not exist!", filePath), loc);
         return content;
     }
     std::string line;
@@ -217,7 +218,7 @@ GLuint loadTexture(const char* textureImagePath, const std::source_location& loc
     textureId = SOIL_load_OGL_texture(textureImagePath, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
     if (textureId == 0)
     {
-        Logger::globalLogger().warning("Could not find texture file "s + textureImagePath + " !"s, loc);
+        Logger::globalLogger().warning(std::format("Could not find texture file {}!", textureImagePath), loc);
     }
     return textureId;
 }

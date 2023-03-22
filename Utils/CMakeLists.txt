@@ -12,17 +12,6 @@
 #   a simple renderer implementation
 
 file(GLOB utils_sources src/*.cpp)
-add_library(Utils STATIC ${utils_sources})
-
-target_include_directories(Utils
-    PUBLIC
-        ${CMAKE_SOURCE_DIR}/3rdparty-install/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/inc
-)
-target_link_directories(Utils
-    INTERFACE ${CMAKE_SOURCE_DIR}/3rdparty-install/lib
-)
-target_link_libraries(Utils
-    PRIVATE general_cxx_compiler_flags extra_cxx_compiler_flags
-    INTERFACE glad
-)
+define_a_static_lib(Utils ${utils_sources})
+# Utils headers
+target_include_directories(Utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc)

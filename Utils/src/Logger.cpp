@@ -1,6 +1,7 @@
 #include <Logger.h>
 #include <algorithm>
 #include <iomanip>
+#include <format>
 
 namespace Utils
 {
@@ -24,7 +25,7 @@ void Logger::setLowestOutputLevel(LogLevel level)
     m_LowestLevel = level;
 }
 
-// block specific log level to output, for higher level than output log level, default to none.
+// block specific log level to output, affect higher levels than output log level, default to none.
 void Logger::blockLevel(LogLevel level)
 {
     switch (level)
@@ -57,48 +58,42 @@ void Logger::trace(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockTrace && m_LowestLevel <= Trace)
     {
-        m_Out << "[ Trace   ][ " << std::setw(20) << std::right << stripFilePath(loc.file_name()) << " : " << std::setw(4) << std::right << loc.line() 
-            << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
+        m_Out << std::format("[ Trace   ][ {: >20} : {: >4} : {: <30} ]: {}\n", stripFilePath(loc.file_name()), loc.line(), loc.function_name(), str);
     }
 }
 void Logger::debug(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockDebug && m_LowestLevel <= Debug)
     {
-        m_Out << "[ Debug   ][ " << std::setw(20) << std::right << stripFilePath(loc.file_name()) << " : " << std::setw(4) << std::right << loc.line() 
-            << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
+        m_Out << std::format("[ Debug   ][ {: >20} : {: >4} : {: <30} ]: {}\n", stripFilePath(loc.file_name()), loc.line(), loc.function_name(), str);
     }
 }
 void Logger::info(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockInfo && m_LowestLevel <= Info)
     {
-        m_Out << "[ Info    ][ " << std::setw(20) << std::right << stripFilePath(loc.file_name()) << " : " << std::setw(4) << std::right << loc.line() 
-            << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
+        m_Out << std::format("[ Info    ][ {: >20} : {: >4} : {: <30} ]: {}\n", stripFilePath(loc.file_name()), loc.line(), loc.function_name(), str);
     }
 }
 void Logger::warning(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockWarning && m_LowestLevel <= Warning)
     {
-        m_Out << "[ Warning ][ " << std::setw(20) << std::right << stripFilePath(loc.file_name()) << " : " << std::setw(4) << std::right << loc.line() 
-            << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
+        m_Out << std::format("[ Warning ][ {: >20} : {: >4} : {: <30} ]: {}\n", stripFilePath(loc.file_name()), loc.line(), loc.function_name(), str);
     }
 }
 void Logger::error(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockError && m_LowestLevel <= Error)
     {
-        m_Out << "[ Error   ][ " << std::setw(20) << std::right << stripFilePath(loc.file_name()) << " : " << std::setw(4) << std::right << loc.line() 
-            << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
+        m_Out << std::format("[ Error   ][ {: >20} : {: >4} : {: <30} ]: {}\n", stripFilePath(loc.file_name()), loc.line(), loc.function_name(), str);
     }
 }
 void Logger::fatal(const std::string& str, const std::source_location& loc)
 {
     if (!m_bBlockFatal && m_LowestLevel <= Fatal)
     {
-        m_Out << "[ Fatal   ][ " << std::setw(20) << std::right << stripFilePath(loc.file_name()) << " : " << std::setw(4) << std::right << loc.line() 
-            << " : " << std::setw(30) << std::left << loc.function_name() <<  " ]: " << str << std::endl;
+        m_Out << std::format("[ Fatal   ][ {: >20} : {: >4} : {: <30} ]: {}\n", stripFilePath(loc.file_name()), loc.line(), loc.function_name(), str);
     }
 }
 

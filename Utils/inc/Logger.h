@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <source_location>
+#include <format>
 
 using namespace std::string_literals; // for anyone who use Logger
 
@@ -27,7 +28,7 @@ public:
     ~Logger();
     // set the lowest output log level, default to Info.
     void setLowestOutputLevel(LogLevel level);
-    // block specific log level to output, for higher level than output log level, default to none.
+    // block specific log level to output, affect higher levels than output log level, default to none.
     void blockLevel(LogLevel level);
     
     // log functions
