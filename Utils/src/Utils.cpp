@@ -162,7 +162,7 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
     // load glsl source to shader object
     glShaderSource(vShader, 1, &vertexShader, NULL);
     glShaderSource(fShader, 1, &fragmentShader, NULL);
-    glShaderSource(gShader, 1, &fragmentShader, NULL);
+    glShaderSource(gShader, 1, &geometryShader, NULL);
 
     // compiler shader obejct
     glCompileShader(vShader);

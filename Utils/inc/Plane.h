@@ -17,7 +17,7 @@ private:
     std::vector<glm::vec3> m_tTangents; // the tangent of texture t direction
 public:
     // orthogonal to y axis
-    Plane(float y, float width = 100.0f, int precision = 50);
+    Plane(float y, float width = 100.0f, float texWidth = 10.0f, int precision = 50);
     // match with glDrawArrays
     virtual bool supplyVertices() override;
     virtual bool supplyTexCoords() override;

@@ -4,7 +4,7 @@ namespace Utils
 {
 
 // orthogonal to y axis
-Plane::Plane(float y, float width, int prec)
+Plane::Plane(float y, float width, float texWidth, int prec)
 {
     int numVertices = (prec + 1) * (prec + 1);
     int numIndices = prec * prec * 6;
@@ -19,12 +19,12 @@ Plane::Plane(float y, float width, int prec)
     {
         float x = -width / 2.0f;
         float z = -width / 2.0f;
-        float texX = 0.0f;
-        float texZ = 0.0f;
+        float texX = -0.5f * texWidth;
+        float texZ = -0.5f * texWidth;
         for (int j = 0; j <= prec; j++)
         {
             m_vertices[i * (prec + 1) + j] = glm::vec3(x + width/prec*j, y, z + width/prec*i);
-            m_texCoords[i * (prec + 1) + j] = glm::vec2(texX + 1.0/prec*j, texZ + 1.0/prec*i);
+            m_texCoords[i * (prec + 1) + j] = glm::vec2(texX + texWidth/prec*j, texZ + texWidth/prec*i);
             m_normals[i * (prec + 1) + j] = glm::vec3(0.0f, 1.0f, 0.0f);
             m_sTangents[i * (prec + 1) + j] = glm::vec3(1.0f, 0.0f, 0.0f);
             m_sTangents[i * (prec + 1) + j] = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -69,7 +69,7 @@ std::vector<float> Plane::getVerticesArray()
 {
     std::vector<float> verticesVec;
     verticesVec.reserve(m_indices.size() * 3);
-    for (int i = 0; i < m_indices.size(); ++i)
+    for (std::size_t i = 0; i < m_indices.size(); ++i)
     {
         verticesVec.push_back(m_vertices[m_indices[i]].x);
         verticesVec.push_back(m_vertices[m_indices[i]].y);
@@ -82,7 +82,7 @@ std::vector<float> Plane::getTexCoordsArray()
 {
     std::vector<float> texCoordsVec;
     texCoordsVec.reserve(m_indices.size() * 2);
-    for (int i = 0; i < m_indices.size(); ++i)
+    for (std::size_t i = 0; i < m_indices.size(); ++i)
     {
         texCoordsVec.push_back(m_texCoords[m_indices[i]].s);
         texCoordsVec.push_back(m_texCoords[m_indices[i]].t);
@@ -94,7 +94,7 @@ std::vector<float> Plane::getNormalsArray()
 {
     std::vector<float> normalsVec;
     normalsVec.reserve(m_indices.size() * 3);
-    for (int i = 0; i < m_indices.size(); ++i)
+    for (std::size_t i = 0; i < m_indices.size(); ++i)
     {
         normalsVec.push_back(m_normals[m_indices[i]].x);
         normalsVec.push_back(m_normals[m_indices[i]].y);
@@ -107,7 +107,7 @@ std::vector<float> Plane::getSTangentsArray()
 {
     std::vector<float> tangentsVec;
     tangentsVec.reserve(m_indices.size() * 3);
-    for (int i = 0; i < m_indices.size(); ++i)
+    for (std::size_t i = 0; i < m_indices.size(); ++i)
     {
         tangentsVec.push_back(m_sTangents[m_indices[i]].x);
         tangentsVec.push_back(m_sTangents[m_indices[i]].y);
@@ -120,7 +120,7 @@ std::vector<float> Plane::getTTangentsArray()
 {
     std::vector<float> tangentsVec;
     tangentsVec.reserve(m_indices.size() * 3);
-    for (int i = 0; i < m_indices.size(); ++i)
+    for (std::size_t i = 0; i < m_indices.size(); ++i)
     {
         tangentsVec.push_back(m_tTangents[m_indices[i]].x);
         tangentsVec.push_back(m_tTangents[m_indices[i]].y);

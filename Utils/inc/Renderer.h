@@ -104,9 +104,10 @@ private:
     static int& getLastCursorPosY(GLFWwindow* w) { return s_WindowAttrs[w].m_LastCursorPosY; }
 private:
     // some max lihgts number constants, must be same as the number in the shader !
-    static constexpr std::size_t MAX_POINT_LIGHT_SIZE = 10;
-    static constexpr std::size_t MAX_DIRECTIONAL_LIGHT_SIZE = 10;
-    static constexpr std::size_t MAX_SPOT_LIGHT_SIZE = 10;
+    static constexpr std::size_t MAX_POINT_LIGHT_SIZE = 5;
+    static constexpr std::size_t MAX_DIRECTIONAL_LIGHT_SIZE = 5;
+    static constexpr std::size_t MAX_SPOT_LIGHT_SIZE = 5;
+    static constexpr std::size_t MAX_SHADOW_SIZE = MAX_POINT_LIGHT_SIZE + MAX_DIRECTIONAL_LIGHT_SIZE + MAX_SPOT_LIGHT_SIZE; // 15
 private:
     // window
     GLFWwindow* m_pWindow = nullptr;
@@ -129,6 +130,10 @@ private:
     Shader m_TextureShader;
     Shader m_GouraudMaterialTextureShader;
     Shader m_PhongMaterialTextureShader;
+    Shader m_SimpleShadowDepthShader; // depth shadow for every light
+    Shader m_ShadowShader;
+    Shader m_ShadowDebugShader1; // just show the specific shadow texture.
+    Shader m_ShadowDebugShader2; // show simplified shadow result for specific light.
     // xyz axis
     GLuint m_AxisesVao;
     GLuint m_AxisesVbo;
@@ -139,6 +144,12 @@ private:
     std::vector<DirectionalLight> m_DirectionalLights;
     std::vector<PointLight> m_PointLights;
     std::vector<SpotLight> m_SpotLights;
+    // shadow frame buffers, shadow textures
+    std::vector<GLuint> m_ShadowTextures;
+    std::vector<GLuint> m_ShadowBuffers;
+    std::vector<glm::mat4> m_ShadowVPs;
+    GLuint m_FirstShadowTextureUnit = GL_TEXTURE10; // shadow texture begin from texture unit 10
+    glm::mat4 m_BMatrix;
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
@@ -179,7 +190,11 @@ private:
     void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();
     void drawAxises();
+    void drawShadowTextures(float currentTime);
     void display(float currentTime);
+    // debug functions
+    void debugShowShadowTexture(std::size_t shadowIndex);
+    void debugShowSimplifiedShadowResult(std::size_t shadowIndex, float currentTime);
 };
 
 } // namespace Utils
