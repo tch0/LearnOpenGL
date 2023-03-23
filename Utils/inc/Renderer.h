@@ -141,6 +141,7 @@ private:
     Shader m_ShadowShader;
     Shader m_ShadowDebugShader1; // just show the specific shadow texture.
     Shader m_ShadowDebugShader2; // show simplified shadow result for specific light.
+    Shader m_SkyBoxShader;       // render sky box
     // xyz axis
     GLuint m_AxisesVao;
     GLuint m_AxisesVbo;
@@ -159,6 +160,12 @@ private:
     glm::mat4 m_BMatrix;
     PCFMode m_PCFMode = NoPCF;
     float m_PCFFactor = 2.5f;
+    // sky box
+    GLuint m_SkyBoxVao;
+    GLuint m_SkyBoxVbo;
+    bool m_bEanbleSkyBox = false;
+    GLuint m_SkyBoxTexture = 0;
+    GLsizei m_SkyBoxVerticesCount = 0;
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
@@ -185,6 +192,11 @@ public:
     // set pcf factor to adjust the diffusion range of soft shadow, a typical value is 2.5f
     void setPCFMode(PCFMode mode, float pcfFactor = 2.5f);
 
+    // enable sky box, set texture to sky box
+    void enableSkyBox(const char* rightImage, const char* leftImage,
+                   const char* topImage, const char* bottomImage,
+                   const char* frontImage, const char* backImage);
+
     // set model attributes
     // set rotatoin attributes, default to false
     void setModelRotation(std::size_t modelIndex, glm::vec3 rotationAxis, float rotationRate);
@@ -204,6 +216,7 @@ private:
     void updateViewArgsAccordingToCursorPos();
     void drawAxises();
     void drawShadowTextures(float currentTime);
+    void drawSkyBox();
     void display(float currentTime);
     // debug functions
     void debugShowShadowTexture(std::size_t shadowIndex);

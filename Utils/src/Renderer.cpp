@@ -105,7 +105,7 @@ void main(void)
 const char* textureVertexShader = R"glsl(
 #version 430
 layout (location = 0) in vec3 position;     // the model vertex buffer
-layout (location = 1) in vec2 texureCoord;  // the texture vertex buffer
+layout (location = 1) in vec2 textureCoord;  // the texture vertex buffer
 uniform mat4 mvMatrix;
 uniform mat4 projMatrix;
 layout (binding = 0) uniform sampler2D samp; // always texture unit 0
@@ -113,7 +113,7 @@ out vec2 tc; // texture coordinates output
 void main(void)
 {
     gl_Position = projMatrix * mvMatrix * vec4(position, 1.0);
-    tc = texureCoord;
+    tc = textureCoord;
 }
 )glsl";
 
@@ -173,7 +173,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
@@ -314,7 +314,7 @@ void main()
     gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
 
     // texture coordinates
-    tc = texureCoord;
+    tc = textureCoord;
 }
 )glsl";
 
@@ -360,7 +360,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
@@ -466,7 +466,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
@@ -509,7 +509,7 @@ void main()
     }
     gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
     // texture coordinates
-    tc = texureCoord;
+    tc = textureCoord;
 }
 )glsl";
 
@@ -555,7 +555,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
@@ -746,7 +746,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
@@ -812,7 +812,7 @@ void main()
     }
     gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
     // texture coordinates
-    tc = texureCoord;
+    tc = textureCoord;
     // shadow coordinates
     uint shadowSize = directionalLightsSize + pointLightsSize + spotLightsSize;
     for (uint i = 0; i < shadowSize; i++)
@@ -865,7 +865,7 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 texureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;      // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
@@ -1225,6 +1225,39 @@ void main()
 }
 )glsl";
 
+// sky box shader
+const char* skyBoxVertexShader = R"glsl(
+#version 430
+layout (location = 0) in vec3 vertexPos;
+uniform mat4 mvMatrix;
+uniform mat4 projMatrix;
+uniform samplerCube skyboxTex;
+out vec3 texCoord;
+void main()
+{
+    texCoord = vertexPos;
+    // remove translation from view matrix, note that there is no model transformation for sky box.
+    // this is so brilliant !!!
+    mat4 vRotMatrix = mat4(mat3(mvMatrix)); 
+    gl_Position = projMatrix * vRotMatrix * vec4(vertexPos, 1.0);
+}
+)glsl";
+
+const char* skyBoxFragmentShader = R"glsl(
+#version 430
+layout (location = 0) in vec3 vertexPos;
+uniform mat4 mvMatrix;
+uniform mat4 projMatrix;
+uniform samplerCube skyboxTex;
+in vec3 texCoord;
+out vec4 fragColor;
+void main()
+{
+    fragColor = texture(skyboxTex, texCoord);
+}
+)glsl";
+
+
 // ======================================================= Renderer ==============================================
 Renderer::Renderer(const char* windowTitle, int width, int height, float axisLength)
     : m_AxisLength(axisLength)
@@ -1264,11 +1297,13 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     m_TextureShader.setShaderSource(textureVertexShader, textureFragmentShader);
     m_GouraudMaterialTextureShader.setShaderSource(GouraudLightingMaterialTextureVertexShader, GouraudLightingMaterialTextureFragmentShader);
     m_PhongMaterialTextureShader.setShaderSource(PhongLightingMaterialTextureVertexShader, PhongLightingMaterialTextureFragmentShader);
-
+    // shadow
     m_SimpleShadowDepthShader.setShaderSource(shadowDepthVertexShader, shadowDepthFragmentShader);
     m_ShadowShader.setShaderSource(shadowShadingVertexShader, shadowShadingFragmentShader);
     m_ShadowDebugShader1.setShaderSource(shadowDebugVertexShader1, shadowDebugFragmentShader1);
     m_ShadowDebugShader2.setShaderSource(shadowDebugVertexShader2, shadowDebugFragmentShader2);
+    // skybox
+    m_SkyBoxShader.setShaderSource(skyBoxVertexShader, skyBoxFragmentShader);
 
     // init window attributes
     s_WindowAttrs.insert(std::make_pair(m_pWindow, WindowAttributes{}));
@@ -1618,6 +1653,74 @@ void Renderer::setPCFMode(PCFMode mode, float pcfFactor)
     m_PCFFactor = pcfFactor;
 }
 
+void Renderer::enableSkyBox(const char* rightImage, const char* leftImage,
+                            const char* topImage, const char* bottomImage,
+                            const char* frontImage, const char* backImage)
+{
+    m_bEanbleSkyBox = true;
+    m_SkyBoxTexture = loadCubeMap(rightImage, leftImage,
+                                   topImage, bottomImage,
+                                   frontImage, backImage);
+    std::vector<float> vertices = {
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f
+    };
+    m_SkyBoxVerticesCount = GLsizei(vertices.size() / 3);
+    glGenVertexArrays(1, &m_SkyBoxVao);
+    glBindVertexArray(m_SkyBoxVao);
+    glGenBuffers(1, &m_SkyBoxVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, m_SkyBoxVbo);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+    // set texture attributes
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_SkyBoxTexture);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    checkOpenGLError();
+}
+
 // set model attributes
 // set rotatoin attributes, default to false
 void Renderer::setModelRotation(std::size_t modelIndex, glm::vec3 rotationAxis, float rotationRate)
@@ -1905,6 +2008,31 @@ void Renderer::drawShadowTextures(float currentTime)
     checkOpenGLError();
 }
 
+// draw sky box
+void Renderer::drawSkyBox()
+{
+    // disable depth test
+    if (m_bEanbleSkyBox)
+    {
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        m_SkyBoxShader.use();
+        glBindVertexArray(m_SkyBoxVao);
+        
+        m_ModelMatrix = glm::mat4(1.0f);
+        m_ViewMatrix = glm::lookAt(getEyeLocation(m_pWindow), getObjectLocation(m_pWindow), getUpVector(m_pWindow));
+        m_ModelViewMatrix = m_ViewMatrix * m_ModelMatrix;
+        m_SkyBoxShader.setMat4("mvMatrix", m_ModelViewMatrix);
+        m_SkyBoxShader.setMat4("projMatrix", getProjMatrix(m_pWindow));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, m_SkyBoxTexture);
+        glDrawArrays(GL_TRIANGLES, 0, m_SkyBoxVerticesCount);
+        glBindVertexArray(0);
+        checkOpenGLError();
+    }
+}
+
 // display models
 void Renderer::display(float currentTime)
 {
@@ -1916,6 +2044,9 @@ void Renderer::display(float currentTime)
     // clear background to black during every rendering
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+    // draw sky box first
+    drawSkyBox();
 
     drawAxises();
 

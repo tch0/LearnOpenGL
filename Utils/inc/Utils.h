@@ -27,4 +27,10 @@ GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragm
 // load texture to OpenGL texture object
 GLuint loadTexture(const char* textureImagePath, const std::source_location& loc = std::source_location::current());
 
+// load cube map texture to OpenGL texture object
+GLuint loadCubeMap(const char* rightImage, const char* leftImage,
+                   const char* topImage, const char* bottomImage,
+                   const char* frontImage, const char* backImage,
+                   const std::source_location& loc = std::source_location::current());
+
 } // namespace Utils

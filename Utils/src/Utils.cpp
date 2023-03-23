@@ -223,4 +223,23 @@ GLuint loadTexture(const char* textureImagePath, const std::source_location& loc
     return textureId;
 }
 
+// load cube map texture to OpenGL texture object
+GLuint loadCubeMap(const char* rightImage, const char* leftImage,
+                   const char* topImage, const char* bottomImage,
+                   const char* frontImage, const char* backImage,
+                   const std::source_location& loc)
+{
+    GLuint textureId;
+    textureId = SOIL_load_OGL_cubemap(rightImage, leftImage,
+                                      topImage, bottomImage,
+                                      frontImage, backImage,
+                                      SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, 0);
+    if (textureId == 0)
+    {
+        Logger::globalLogger().warning(std::format("Could not load cube map from {}/{}/{}/{}/{}/{}, please check it out!",
+                                                   rightImage, leftImage, topImage, bottomImage, frontImage, backImage), loc);
+    }
+    return textureId;
+}
+
 } // namespace Utils
