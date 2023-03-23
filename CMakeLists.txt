@@ -43,7 +43,7 @@ list(APPEND 3rdparty_libs glad glfw3 soil2)
 # other essential libraries
 if (MINGW OR MSVC)
     list(APPEND essential_libs gdi32 opengl32)
-else() # for Unix
+elseif(UNIX) # for Unix
     list(APPEND essential_libs GL X11 pthread dl)
 endif()
 

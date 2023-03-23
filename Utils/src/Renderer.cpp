@@ -785,6 +785,9 @@ layout (binding = 21) uniform sampler2D shadowTextureSampler11;
 layout (binding = 22) uniform sampler2D shadowTextureSampler12;
 layout (binding = 23) uniform sampler2D shadowTextureSampler13;
 layout (binding = 24) uniform sampler2D shadowTextureSampler14;
+// pcf mode
+uniform int pcfMode;
+uniform float pcfFactor;
 
 out vec3 varyingNormal;
 out vec3 varyingVertexPos;
@@ -901,6 +904,9 @@ layout (binding = 21) uniform sampler2D shadowTextureSampler11;
 layout (binding = 22) uniform sampler2D shadowTextureSampler12;
 layout (binding = 23) uniform sampler2D shadowTextureSampler13;
 layout (binding = 24) uniform sampler2D shadowTextureSampler14;
+// pcf mode
+uniform int pcfMode;
+uniform float pcfFactor;
 
 in vec3 varyingNormal;
 in vec3 varyingVertexPos;
@@ -919,12 +925,52 @@ vec3 materialSpecular;
 vec3 textureSpecular;
 uint shadowIndex;
 
+float lookup(sampler2D samp, vec4 shadowCoordinate, float offsetx, float offsety)
+{
+    // it will still generate wroung shadow acne for directional light for now, how to improve here? todo.
+    // the nearyby coordinate
+    shadowCoordinate += vec4(offsetx * 0.001 * shadowCoordinate.w, offsety * 0.001 * shadowCoordinate.w, 0.0, 0.0);
+    // give a fixed bias ratio to avoid shadow acne
+    float biasRatio = 0.01;
+    return texture(samp, shadowCoordinate.xy/shadowCoordinate.w).x < shadowCoordinate.z/shadowCoordinate.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 1
+    // return textureProj(samp, shadowCoordinate).x < shadowCoordinate.z/shadowCoordinate.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 2 
+}
+
 // I don't know why built-in textureProj function didn't work as the way it said, write it by ourself.
 float myTexProj(sampler2D samp, vec4 shadowCoordinate)
 {
-    float biasRatio = 0.01; // give a fixed bias ratio to avoid shadow acne
-    // return texture(samp, shadowCoordinate.xy/shadowCoordinate.w).x < shadowCoordinate.z/shadowCoordinate.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 1
-    return textureProj(samp, shadowCoordinate).x < shadowCoordinate.z/shadowCoordinate.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 2
+    // adjustable shadow diffusion value
+    float sWidth = pcfFactor;
+    // sampling nearby 64 texels
+    if (pcfMode == 1)
+    {
+        float shadowFactor = 0.0;
+        float endp = sWidth * 3.5 + sWidth / 2.0;
+        for (float m = -endp; m <= endp; m += sWidth)
+        {
+            for (float n = -endp; n <= endp; n += sWidth)
+            {
+                shadowFactor += lookup(samp, shadowCoordinate, m, n);
+            }
+        }
+        shadowFactor /= 64.0;
+        return shadowFactor;
+    }
+    // sampling dithered nearby 4 texels
+    else if (pcfMode == 2)
+    {
+        vec2 offset = mod(floor(gl_FragCoord.xy), 2.0) * sWidth; // (0, 0)/(sWidth, 0)/(0, sWidth)/(sWidth, sWidth)
+        float shadowFactor = 0.0;
+        // four nearby coordinate with offset of: (-1.5, 0.5), (-1.5, -1.5), (0.5, 0.5), (0.5, -1.5)
+        shadowFactor += lookup(samp, shadowCoordinate, -1.5 * sWidth + offset.x,  1.5 * sWidth - offset.y);
+        shadowFactor += lookup(samp, shadowCoordinate, -1.5 * sWidth + offset.x, -0.5 * sWidth - offset.y);
+        shadowFactor += lookup(samp, shadowCoordinate,  0.5 * sWidth + offset.x,  1.5 * sWidth - offset.y);
+        shadowFactor += lookup(samp, shadowCoordinate,  0.5 * sWidth + offset.x, -0.5 * sWidth - offset.y);
+        shadowFactor /= 4.0;
+        return shadowFactor;
+    }
+    // pcfMode == 0, no pcf
+    return lookup(samp, shadowCoordinate, 0.0, 0.0);
 }
 
 // shadowIndex, shadowCoord, and shadow texture samplers as input
@@ -962,14 +1008,11 @@ void calculateDirectionalLight(DirectionalLight light, vec3 P, vec3 N)
     // the ADS weight of vertex
     ambient += light.ambient.xyz;
     // deal with shadow
-    float notInShadow = myTextureProj();
-    if (notInShadow == 1.0)
-    {
-        diffuse += light.diffuse.xyz * max(dot(N, L), 0.0);
-        materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess);
-        // shininess will be always 1.0 for texture, is this proper?
-        textureSpecular += light.specular.xyz * max(dot(R, V), 0.0);
-    }
+    float shadowFactor = myTextureProj();
+    diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * shadowFactor;
+    materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * shadowFactor;
+    // shininess will be always 1.0 for texture, is this proper?
+    textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * shadowFactor;
 }
 
 void calculatePointLight(PointLight light, uint index, vec3 P, vec3 N)
@@ -986,14 +1029,11 @@ void calculatePointLight(PointLight light, uint index, vec3 P, vec3 N)
     // the ADS weight of vertex
     ambient += light.ambient.xyz * attenuation;
     // deal with shadow
-    float notInShadow = myTextureProj();
-    if (notInShadow == 1.0)
-    {
-        diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * attenuation;
-        materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * attenuation;
-        // shininess will be always 1.0 for texture, is this proper?
-        textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * attenuation;
-    }
+    float shadowFactor = myTextureProj();
+    diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * attenuation * shadowFactor;
+    materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * attenuation * shadowFactor;
+    // shininess will be always 1.0 for texture, is this proper?
+    textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * attenuation * shadowFactor;
 }
 
 void calculateSpotLight(SpotLight light, uint index, vec3 P, vec3 N)
@@ -1012,14 +1052,11 @@ void calculateSpotLight(SpotLight light, uint index, vec3 P, vec3 N)
     // ADS weight of vertex
     ambient += light.ambient.xyz * strengthFactor;
     // deal with shadow
-    float notInShadow = myTextureProj();
-    if (notInShadow == 1.0)
-    {
-        diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * strengthFactor;
-        materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * strengthFactor;
-        // shininess will be always 1.0 for texture, is this proper?
-        textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * strengthFactor;
-    }
+    float shadowFactor = myTextureProj();
+    diffuse += light.diffuse.xyz * max(dot(N, L), 0.0) * strengthFactor * shadowFactor;
+    materialSpecular += light.specular.xyz * pow(max(dot(R, V), 0.0), material.shininess) * strengthFactor * shadowFactor;
+    // shininess will be always 1.0 for texture, is this proper?
+    textureSpecular += light.specular.xyz * max(dot(R, V), 0.0) * strengthFactor * shadowFactor;
 }
 
 void main()
@@ -1099,6 +1136,9 @@ uniform mat4 mvMatrix;      // model-view matrix
 uniform mat4 projMatrix;    // projection matrix
 uniform mat4 shadowMVP;
 uniform sampler2D depthTexture;
+// pcf mode
+uniform int pcfMode;
+uniform float pcfFactor;
 
 out vec2 tc;
 out vec4 shadowCoord;
@@ -1119,17 +1159,68 @@ uniform mat4 mvMatrix;      // model-view matrix
 uniform mat4 projMatrix;    // projection matrix
 uniform mat4 shadowMVP;
 uniform sampler2D depthTexture;
+// pcf mode
+uniform int pcfMode;
+uniform float pcfFactor;
 
 in vec2 tc;
 in vec4 shadowCoord;
 out vec4 fragColor;
 
+float lookup(sampler2D samp, vec4 shadowCoordinate, float offsetx, float offsety)
+{
+    // the nearyby coordinate
+    shadowCoordinate += vec4(offsetx * 0.001 * shadowCoordinate.w, offsety * 0.001 * shadowCoordinate.w, 0.0, 0.0);
+    // give a fixed bias ratio to avoid shadow acne
+    float biasRatio = 0.01;
+    return texture(samp, shadowCoordinate.xy/shadowCoordinate.w).x < shadowCoordinate.z/shadowCoordinate.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 1
+    // return textureProj(samp, shadowCoordinate).x < shadowCoordinate.z/shadowCoordinate.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 2 
+}
+
+// I don't know why built-in textureProj function didn't work as the way it said, write it by ourself.
+float myTexProj(sampler2D samp, vec4 shadowCoordinate)
+{
+    // adjustable shadow diffusion value
+    float sWidth = pcfFactor;
+    // sampling nearby 64 texels
+    if (pcfMode == 1)
+    {
+        float shadowFactor = 0.0;
+        float endp = sWidth * 3.5 + sWidth / 2.0;
+        for (float m = -endp; m <= endp; m += sWidth)
+        {
+            for (float n = -endp; n <= endp; n += sWidth)
+            {
+                shadowFactor += lookup(samp, shadowCoordinate, m, n);
+            }
+        }
+        shadowFactor /= 64.0;
+        return shadowFactor;
+    }
+    // sampling dithered nearby 4 texels
+    else if (pcfMode == 2)
+    {
+        vec2 offset = mod(floor(gl_FragCoord.xy), 2.0) * sWidth; // (0, 0)/(sWidth, 0)/(0, sWidth)/(sWidth, sWidth)
+        float shadowFactor = 0.0;
+        // four nearby coordinate with offset of: (-1.5, 0.5), (-1.5, -1.5), (0.5, 0.5), (0.5, -1.5)
+        shadowFactor += lookup(samp, shadowCoordinate, -1.5 * sWidth + offset.x,  1.5 * sWidth - offset.y);
+        shadowFactor += lookup(samp, shadowCoordinate, -1.5 * sWidth + offset.x, -0.5 * sWidth - offset.y);
+        shadowFactor += lookup(samp, shadowCoordinate,  0.5 * sWidth + offset.x,  1.5 * sWidth - offset.y);
+        shadowFactor += lookup(samp, shadowCoordinate,  0.5 * sWidth + offset.x, -0.5 * sWidth - offset.y);
+        shadowFactor /= 4.0;
+        return shadowFactor;
+    }
+    // pcfMode == 0, no pcf
+    return lookup(samp, shadowCoordinate, 0.0, 0.0);
+}
+
 void main()
 {
     float biasRatio = 0.01; // give a fixed bias ratio to avoid shadow acne
-    float result = texture(depthTexture, shadowCoord.xy/shadowCoord.w).x < shadowCoord.z/shadowCoord.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 1
+    // float result = texture(depthTexture, shadowCoord.xy/shadowCoord.w).x < shadowCoord.z/shadowCoord.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 1
     // float result = textureProj(depthTexture, shadowCoord).x < shadowCoord.z/shadowCoord.w * (1 - biasRatio) ? 0.0 : 1.0; // solution 2
     // float result = texture(depthTexture, shadowCoord.xy/shadowCoord.w).x; // for test
+    float result = myTexProj(depthTexture, shadowCoord);
     fragColor = vec4(vec3(result), 1.0);
 }
 )glsl";
@@ -1521,9 +1612,10 @@ void Renderer::setFaceCullingAttribute(bool enable, GLenum mode, GLenum front)
 } 
 
 // set PCF(Percentage Closer Filtering) mode, for soft shadow, default to NoPCF, only affect models with PhongShadingWithShadow style
-void Renderer::setPCFMode(PCFMode mode)
+void Renderer::setPCFMode(PCFMode mode, float pcfFactor)
 {
     m_PCFMode = mode;
+    m_PCFFactor = pcfFactor;
 }
 
 // set model attributes
@@ -2008,7 +2100,7 @@ void Renderer::display(float currentTime)
         }
         checkOpenGLError();
 
-        // shadow mvp matrices and shadow textures
+        // shadow stuff
         if (style == PhongShadingWithShadow)
         {
             for (std::size_t shadowIndex = 0; shadowIndex < m_ShadowVPs.size(); shadowIndex++)
@@ -2021,6 +2113,8 @@ void Renderer::display(float currentTime)
                 glActiveTexture(GLenum(m_FirstShadowTextureUnit + shadowIndex));
                 glBindTexture(GL_TEXTURE_2D, m_ShadowTextures[shadowIndex]);
             }
+            shader.setInt("pcfMode", m_PCFMode);
+            shader.setFloat("pcfFactor", m_PCFFactor);
         }
         checkOpenGLError();
 
@@ -2088,6 +2182,9 @@ void Renderer::debugShowSimplifiedShadowResult(std::size_t shadowIndex, float cu
     m_ShadowDebugShader2.use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_ShadowTextures[shadowIndex]);
+    // pcf attributes
+    m_ShadowDebugShader2.setInt("pcfMode", m_PCFMode);
+    m_ShadowDebugShader2.setFloat("pcfFactor", m_PCFFactor);
     for (std::size_t i = 0; i < m_Models.size(); i++)
     {
         m_ModelMatrix = glm::mat4(1.0f);

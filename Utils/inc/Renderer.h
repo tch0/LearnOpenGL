@@ -44,7 +44,7 @@ public:
     // Percentage Closer Filtering/PCF mode to generate soft shadow, only for PhongShadingWithShadow mode.
     enum PCFMode
     {
-        NoPCF,              // disable PCF
+        NoPCF = 0,          // disable PCF
         Sample64,           // sampling for near 64 texels
         Sample4Dithered     // sampling for near dithered 4 texels
     };
@@ -158,6 +158,7 @@ private:
     GLuint m_FirstShadowTextureUnit = GL_TEXTURE10; // shadow texture begin from texture unit 10
     glm::mat4 m_BMatrix;
     PCFMode m_PCFMode = NoPCF;
+    float m_PCFFactor = 2.5f;
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
@@ -181,7 +182,8 @@ public:
     void setFaceCullingAttribute(bool enable, GLenum mode, GLenum front); 
     
     // set PCF(Percentage Closer Filtering) mode, for soft shadow, default to NoPCF, only affect models with PhongShadingWithShadow style
-    void setPCFMode(PCFMode mode);
+    // set pcf factor to adjust the diffusion range of soft shadow, a typical value is 2.5f
+    void setPCFMode(PCFMode mode, float pcfFactor = 2.5f);
 
     // set model attributes
     // set rotatoin attributes, default to false
