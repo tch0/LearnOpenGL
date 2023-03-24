@@ -81,6 +81,8 @@ private:
         GLuint normalVbo = 0;
         GLuint sTanVbo = 0;
         GLuint tTanVbo = 0;
+        // bump map
+        bool generateBumpMap = false;
     };
     // attributes that every window needs one copy
     // workaround for variables that need to be visited in call back function, they must be static, so save them in static hashtable for every window.
@@ -213,6 +215,8 @@ public:
     void setMaterial(std::size_t modelIndex, const Material& material, float weight = 1.0);
     // set lighting mode of model, for LightingMaterialTexture style, default to FlatShading
     void setLightingMode(std::size_t modelIndex, LightingMode mode);
+    // enable bump map for model, only for LightingMaterialTexture style
+    void enableBumpMap(std::size_t modelIndex);
 private:
     void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();

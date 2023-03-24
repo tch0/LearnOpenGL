@@ -487,6 +487,8 @@ uniform mat4 normMatrix;    // for transformation of normal vector
 // material and texture weight
 uniform float materialWeight;
 uniform float textureWeight;
+// bump map mode
+uniform int enableBumpMap;
 
 out vec3 varyingNormal;
 out vec3 varyingVertexPos;
@@ -494,6 +496,8 @@ out vec3 varyingVertexPos;
 out vec3 varyingPointLightDirections[MAX_POINT_LIGHT_SIZE];
 out vec3 varyingSpotLightDirections[MAX_SPOT_LIGHT_SIZE];
 out vec2 tc;
+// for bump map
+out vec3 originalVertexPos;
 
 void main()
 {
@@ -510,6 +514,8 @@ void main()
     gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
     // texture coordinates
     tc = textureCoord;
+    // bump map information
+    originalVertexPos = vertexPos;
 }
 )glsl";
 
@@ -576,6 +582,8 @@ uniform mat4 normMatrix;    // for transformation of normal vector
 // material and texture weight
 uniform float materialWeight;
 uniform float textureWeight;
+// bump map mode
+uniform int enableBumpMap;
 
 in vec3 varyingNormal;
 in vec3 varyingVertexPos;
@@ -583,6 +591,8 @@ in vec3 varyingVertexPos;
 in vec3 varyingPointLightDirections[MAX_POINT_LIGHT_SIZE];
 in vec3 varyingSpotLightDirections[MAX_SPOT_LIGHT_SIZE];
 in vec2 tc;
+// for bump map
+in vec3 originalVertexPos;
 
 out vec4 fragColor;
 
@@ -655,22 +665,34 @@ void main()
     materialSpecular = vec3(0.0, 0.0, 0.0);
     textureSpecular = vec3(0.0, 0.0, 0.0);
 
+    // calculate bump map
+    vec3 N = varyingNormal;
+    if (enableBumpMap == 1)
+    {
+        float a = 0.25;
+        float b = 50;
+        N.x += a * sin(b * originalVertexPos.x);
+        N.y += a * sin(b * originalVertexPos.y);
+        N.z += a * sin(b * originalVertexPos.z);
+        N = normalize(N);
+    }
+
     // global ambient
     ambient += globalAmbient.xyz;
     // directional lights
     for (uint i = 0; i < directionalLightsSize; i++)
     {
-        calculateDirectionalLight(directionalLights[i], varyingVertexPos, varyingNormal);
+        calculateDirectionalLight(directionalLights[i], varyingVertexPos, N);
     }
     // point lights
     for (uint i = 0; i < pointLightsSize; i++)
     {
-        calculatePointLight(pointLights[i], i, varyingVertexPos, varyingNormal);
+        calculatePointLight(pointLights[i], i, varyingVertexPos, N);
     }
     // spot lights
     for (uint i = 0; i < spotLightsSize; i++)
     {
-        calculateSpotLight(spotLights[i], i, varyingVertexPos, varyingNormal);
+        calculateSpotLight(spotLights[i], i, varyingVertexPos, N);
     }
     // result
     fragColor = vec4(0.0, 0.0, 0.0, 0.0);
@@ -1828,6 +1850,12 @@ void Renderer::setLightingMode(std::size_t modelIndex, LightingMode mode)
     m_Models[modelIndex].lightingMode = mode;
 }
 
+void Renderer::enableBumpMap(std::size_t modelIndex)
+{
+    assert(modelIndex < m_Models.size());
+    m_Models[modelIndex].generateBumpMap = true;
+}
+
 // check whether all data are prepared for model and specific render style
 // support some check that is not proper to do in display
 void Renderer::checkForModelAttributes()
@@ -2307,6 +2335,12 @@ void Renderer::display(float currentTime)
             shader.setMat4("normMatrix", glm::transpose(glm::inverse(m_ModelViewMatrix)));
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, m_SkyBoxTexture);
+        }
+
+        // bump map
+        if (style == LightingMaterialTexture)
+        {
+            shader.setBool("enableBumpMap", m_Models[i].generateBumpMap);
         }
 
         glBindVertexArray(m_Models[i].vao);
