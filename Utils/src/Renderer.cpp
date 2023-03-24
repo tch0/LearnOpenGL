@@ -1225,7 +1225,7 @@ void main()
 }
 )glsl";
 
-// sky box shader
+// ================================================= Sky box Shader ==============================================
 const char* skyBoxVertexShader = R"glsl(
 #version 430
 layout (location = 0) in vec3 vertexPos;
@@ -1257,6 +1257,45 @@ void main()
 }
 )glsl";
 
+// ============================================ Environment map shader ==========================================
+const char* environmentMapVertexShader = R"glsl(
+#version 430
+layout (location = 0) in vec3 vertexPos;
+layout (location = 2) in vec3 vertexNormal; // note: normals in location 2 for all shaders.
+uniform mat4 mvMatrix;
+uniform mat4 projMatrix;
+uniform mat4 normMatrix;    // matrix to transform normals
+uniform samplerCube skyboxTex;
+
+out vec3 varyingNormal;
+out vec3 varyingVertexPos;
+void main()
+{
+    varyingVertexPos = (mvMatrix * vec4(vertexPos, 1.0)).xyz;
+    varyingNormal = (normMatrix * vec4(vertexNormal, 1.0)).xyz;
+    gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
+}
+)glsl";
+
+const char* environmentMapFragmentShader = R"glsl(
+#version 430
+layout (location = 0) in vec3 vertexPos;
+layout (location = 1) in vec3 vertexNormal;
+uniform mat4 mvMatrix;
+uniform mat4 projMatrix;
+uniform mat4 normMatrix;    // matrix to transform normals
+uniform samplerCube skyboxTex;
+
+in vec3 varyingNormal;
+in vec3 varyingVertexPos;
+out vec4 fragColor;
+void main()
+{
+    // get the opposite direction of reflect vector
+    vec3 r = -reflect(normalize(-varyingVertexPos), normalize(varyingNormal));
+    fragColor = texture(skyboxTex, r);
+}
+)glsl";
 
 // ======================================================= Renderer ==============================================
 Renderer::Renderer(const char* windowTitle, int width, int height, float axisLength)
@@ -1304,6 +1343,8 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
     m_ShadowDebugShader2.setShaderSource(shadowDebugVertexShader2, shadowDebugFragmentShader2);
     // skybox
     m_SkyBoxShader.setShaderSource(skyBoxVertexShader, skyBoxFragmentShader);
+    // environment map
+    m_EnvironmentMapShader.setShaderSource(environmentMapVertexShader, environmentMapFragmentShader);
 
     // init window attributes
     s_WindowAttrs.insert(std::make_pair(m_pWindow, WindowAttributes{}));
@@ -1800,6 +1841,13 @@ void Renderer::checkForModelAttributes()
                 Utils::Logger::globalLogger().warning(std::format("Model {} set to LightingMaterialTexture render style but normals are not supplied.", i));
             }
         }
+        else if (m_Models[i].style == EnvironmentMap)
+        {
+            if (!m_bEanbleSkyBox)
+            {
+                Utils::Logger::globalLogger().warning(std::format("Model {} set to EnvironmentMap render style but no sky box texture supplied.", i));
+            }
+        }
     }
 }
 
@@ -2109,6 +2157,10 @@ void Renderer::display(float currentTime)
             primitiveType = GL_TRIANGLES;
             shader = m_ShadowShader;
             break;
+        case EnvironmentMap:
+            primitiveType = GL_TRIANGLES;
+            shader = m_EnvironmentMapShader;
+            break;
         default:
             primitiveType = GL_TRIANGLES;
             shader = m_PureColorShader;
@@ -2248,6 +2300,14 @@ void Renderer::display(float currentTime)
             shader.setFloat("pcfFactor", m_PCFFactor);
         }
         checkOpenGLError();
+
+        // environment map, sky box will be the environment
+        if (style == EnvironmentMap)
+        {
+            shader.setMat4("normMatrix", glm::transpose(glm::inverse(m_ModelViewMatrix)));
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, m_SkyBoxTexture);
+        }
 
         glBindVertexArray(m_Models[i].vao);
         if (m_Models[i].spModel->supplyIndices())

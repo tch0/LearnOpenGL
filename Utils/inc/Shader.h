@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <glad/gl.h>
 #include <string>
+#include <source_location>
 
 namespace Utils
 {
@@ -13,10 +14,12 @@ private:
     GLuint m_Id;
 public:
     Shader();
-    Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "");
+    Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "",
+           const std::source_location& loc = std::source_location::current());
     Shader(const Shader& shader);
     Shader& operator=(const Shader& shader);
-    void setShaderSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "");
+    void setShaderSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "",
+                         const std::source_location& loc = std::source_location::current());
     GLuint getShaderId();
     void use();
     void setBool(const std::string& name, bool value) const;

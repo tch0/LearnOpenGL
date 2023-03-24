@@ -8,15 +8,15 @@ namespace Utils
 Shader::Shader() : m_Id(0)
 {
 }
-Shader::Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader)
+Shader::Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader, const std::source_location& loc)
 {
     if (geometryShader.empty())
     {
-        m_Id = createShaderProgramFromSource(vertexShader.c_str(), fragmentShader.c_str());
+        m_Id = createShaderProgramFromSource(vertexShader.c_str(), fragmentShader.c_str(), loc);
     }
     else
     {
-        m_Id = createShaderProgramFromSource(vertexShader.c_str(), fragmentShader.c_str(), geometryShader.c_str());
+        m_Id = createShaderProgramFromSource(vertexShader.c_str(), fragmentShader.c_str(), geometryShader.c_str(), loc);
     }
 }
 Shader::Shader(const Shader& shader) : m_Id(shader.m_Id)
@@ -27,9 +27,9 @@ Shader& Shader::operator=(const Shader& shader)
     m_Id = shader.m_Id;
     return *this;
 }
-void Shader::setShaderSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader)
+void Shader::setShaderSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader, const std::source_location& loc)
 {
-    *this = Shader(vertexShader, fragmentShader, geometryShader);
+    *this = Shader(vertexShader, fragmentShader, geometryShader, loc);
 }
 GLuint Shader::getShaderId()
 {

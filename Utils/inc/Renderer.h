@@ -32,7 +32,8 @@ public:
         VaryingColorTriangles,      // varying color triangles according to coordinate
         SpecificTexture,            // render to specific texture
         LightingMaterialTexture,    // support lighting, mix texture and material with specific weight
-        PhongShadingWithShadow      // Phong shading, but support shadows, only models with this mode will create shadow and affected by shadow
+        PhongShadingWithShadow,     // Phong shading, but support shadows, only models with this mode will create shadow and affected by shadow
+        EnvironmentMap              // draw environment map to model, sky box as environment
     };
     // lighting rendering mode only for LightingMaterialTexture style
     enum LightingMode
@@ -137,11 +138,12 @@ private:
     Shader m_TextureShader;
     Shader m_GouraudMaterialTextureShader;
     Shader m_PhongMaterialTextureShader;
-    Shader m_SimpleShadowDepthShader; // depth shadow for every light
-    Shader m_ShadowShader;
-    Shader m_ShadowDebugShader1; // just show the specific shadow texture.
-    Shader m_ShadowDebugShader2; // show simplified shadow result for specific light.
-    Shader m_SkyBoxShader;       // render sky box
+    Shader m_SimpleShadowDepthShader;   // generate depth shadow texture for every light
+    Shader m_ShadowShader;              // draw shadows use shadow texture
+    Shader m_ShadowDebugShader1;        // just show the specific shadow texture.
+    Shader m_ShadowDebugShader2;        // show simplified shadow result for specific light.
+    Shader m_SkyBoxShader;              // render sky box
+    Shader m_EnvironmentMapShader;      // render environment map (use texture of sky box) as texture
     // xyz axis
     GLuint m_AxisesVao;
     GLuint m_AxisesVbo;
