@@ -472,6 +472,7 @@ layout (location = 3) in vec3 sTangent;         // s direction tangent
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
 layout (binding = 1) uniform sampler2D normalMap;
+layout (binding = 2) uniform sampler2D heightMap;
 // lights
 uniform vec4 globalAmbient;
 uniform uint directionalLightsSize;
@@ -493,6 +494,9 @@ uniform float textureWeight;
 uniform int enableBumpMap;
 // enable normal map or not
 uniform int enableNormalMap;
+// enable height map or not
+uniform int enableHeightMap;
+uniform float heightFactor;
 
 out vec3 varyingNormal;
 out vec3 varyingVertexPos;
@@ -507,7 +511,10 @@ out vec3 varyingSTangent;
 
 void main()
 {
-    varyingVertexPos = (mvMatrix * vec4(vertexPos, 1.0)).xyz;
+    // height map
+    vec3 pos = vertexPos + normalize(vertexNormal) * texture(heightMap, textureCoord).x * heightFactor;
+
+    varyingVertexPos = (mvMatrix * vec4(pos, 1.0)).xyz;
     varyingNormal = (normMatrix * vec4(vertexNormal, 1.0)).xyz;
     for (uint i = 0; i < pointLightsSize; i++)
     {
@@ -517,11 +524,11 @@ void main()
     {
         varyingSpotLightDirections[i] = spotLights[i].location - varyingVertexPos;
     }
-    gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);
+    gl_Position = projMatrix * mvMatrix * vec4(pos, 1.0);
     // texture coordinates
     tc = textureCoord;
     // bump map information
-    originalVertexPos = vertexPos;
+    originalVertexPos = pos;
     // for normal map
     varyingSTangent = sTangent;
 }
@@ -575,6 +582,7 @@ layout (location = 3) in vec3 sTangent;         // s direction tangent
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
 layout (binding = 1) uniform sampler2D normalMap;
+layout (binding = 2) uniform sampler2D heightMap;
 // lights
 uniform vec4 globalAmbient;
 uniform uint directionalLightsSize;
@@ -596,6 +604,9 @@ uniform float textureWeight;
 uniform int enableBumpMap;
 // enable normal map or not
 uniform int enableNormalMap;
+// enable height map or not
+uniform int enableHeightMap;
+uniform float heightFactor;
 
 in vec3 varyingNormal;
 in vec3 varyingVertexPos;
@@ -1911,6 +1922,34 @@ void Renderer::setNormalMap(std::size_t modelIndex, GLuint textureId, bool doMip
     }
 }
 
+// set height map for model, only for LightingMaterialTexture style
+void Renderer::setHeightMap(std::size_t modelIndex, const char* textureImagePath, float heightFactor, bool doMipmapping, bool doAnisotropicFiltering)
+{
+    assert(modelIndex < m_Models.size());
+    setHeightMap(modelIndex, loadTexture(textureImagePath), heightFactor, doMipmapping, doAnisotropicFiltering);
+}
+void Renderer::setHeightMap(std::size_t modelIndex, GLuint textureId, float heightFactor, bool doMipmapping, bool doAnisotropicFiltering)
+{
+    assert(modelIndex < m_Models.size());
+    m_Models[modelIndex].enableHeightMap = true;
+    m_Models[modelIndex].heightMap = textureId;
+    m_Models[modelIndex].heightFactor = heightFactor;
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    if (doMipmapping)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glGenerateMipmap(GL_TEXTURE_2D); // generate mipmapping
+    }
+    if (doAnisotropicFiltering && GLAD_GL_EXT_texture_filter_anisotropic) // check if anisotropic filtering extension is supported ?
+    {
+        GLfloat anisoSetting = 0.0f;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
+    }
+}
+
 // check whether all data are prepared for model and specific render style
 // support some check that is not proper to do in display
 void Renderer::checkForModelAttributes()
@@ -2392,7 +2431,7 @@ void Renderer::display(float currentTime)
             glBindTexture(GL_TEXTURE_CUBE_MAP, m_SkyBoxTexture);
         }
 
-        // bump map, normal map
+        // bump map, normal map, height map
         if (style == LightingMaterialTexture)
         {
             shader.setBool("enableBumpMap", m_Models[i].generateBumpMap);
@@ -2401,6 +2440,13 @@ void Renderer::display(float currentTime)
             {
                 glActiveTexture(GL_TEXTURE1);
                 glBindTexture(GL_TEXTURE_2D, m_Models[i].normalMap);
+            }
+            shader.setBool("enableHeightMap", m_Models[i].enableHeightMap);
+            if (m_Models[i].enableHeightMap)
+            {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, m_Models[i].heightMap);
+                shader.setFloat("heightFactor", m_Models[i].heightFactor);
             }
         }
         checkOpenGLError();

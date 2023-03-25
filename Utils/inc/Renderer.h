@@ -84,6 +84,10 @@ private:
         // normal map
         bool enableNormalMap = false;
         GLuint normalMap = 0;
+        // height map
+        bool enableHeightMap = false;
+        GLuint heightMap = 0;
+        float heightFactor = 10.0f;
     };
     // attributes that every window needs one copy
     // workaround for variables that need to be visited in call back function, they must be static, so save them in static hashtable for every window.
@@ -191,7 +195,7 @@ public:
     void addSpotLight(glm::vec4 ambient, glm::vec4 diffuse, glm::vec4 specular, glm::vec3 location, glm::vec3 direction, float cutoff, float exponent);
 
     // set face culling attributes, defualt to true/GL_BACK/GL_CCW
-    void setFaceCullingAttribute(bool enable, GLenum mode, GLenum front); 
+    void setFaceCullingAttribute(bool enable, GLenum mode = GL_BACK, GLenum front = GL_CCW); 
     
     // set PCF(Percentage Closer Filtering) mode, for soft shadow, default to NoPCF, only affect models with PhongShadingWithShadow style
     // set pcf factor to adjust the diffusion range of soft shadow, a typical value is 2.5f
@@ -221,6 +225,9 @@ public:
     // set normal map for model, only for LightingMaterialTexture style
     void setNormalMap(std::size_t modelIndex, const char* textureImagePath, bool doMipmapping = true, bool doAnisotropicFiltering = true);
     void setNormalMap(std::size_t modelIndex, GLuint textureId, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    // set height map for model, only for LightingMaterialTexture style
+    void setHeightMap(std::size_t modelIndex, const char* textureImagePath, float heightFactor = 10.0f, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setHeightMap(std::size_t modelIndex, GLuint textureId, float heightFactor = 10.0f, bool doMipmapping = true, bool doAnisotropicFiltering = true);
 private:
     void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();
