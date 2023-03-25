@@ -466,10 +466,12 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 textureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;     // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
+layout (location = 3) in vec3 sTangent;         // s direction tangent
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
+layout (binding = 1) uniform sampler2D normalMap;
 // lights
 uniform vec4 globalAmbient;
 uniform uint directionalLightsSize;
@@ -489,6 +491,8 @@ uniform float materialWeight;
 uniform float textureWeight;
 // bump map mode
 uniform int enableBumpMap;
+// enable normal map or not
+uniform int enableNormalMap;
 
 out vec3 varyingNormal;
 out vec3 varyingVertexPos;
@@ -498,6 +502,8 @@ out vec3 varyingSpotLightDirections[MAX_SPOT_LIGHT_SIZE];
 out vec2 tc;
 // for bump map
 out vec3 originalVertexPos;
+// for normal map
+out vec3 varyingSTangent;
 
 void main()
 {
@@ -516,6 +522,8 @@ void main()
     tc = textureCoord;
     // bump map information
     originalVertexPos = vertexPos;
+    // for normal map
+    varyingSTangent = sTangent;
 }
 )glsl";
 
@@ -561,10 +569,12 @@ struct Material
     float shininess;
 };
 layout (location = 0) in vec3 vertexPos;        // vertex buffer
-layout (location = 1) in vec2 textureCoord;      // texture coordinates
+layout (location = 1) in vec2 textureCoord;     // texture coordinates
 layout (location = 2) in vec3 vertexNormal;     // normals of vertices
+layout (location = 3) in vec3 sTangent;         // s direction tangent
 // texture sampler
 layout (binding = 0) uniform sampler2D samp;
+layout (binding = 1) uniform sampler2D normalMap;
 // lights
 uniform vec4 globalAmbient;
 uniform uint directionalLightsSize;
@@ -584,6 +594,8 @@ uniform float materialWeight;
 uniform float textureWeight;
 // bump map mode
 uniform int enableBumpMap;
+// enable normal map or not
+uniform int enableNormalMap;
 
 in vec3 varyingNormal;
 in vec3 varyingVertexPos;
@@ -593,6 +605,8 @@ in vec3 varyingSpotLightDirections[MAX_SPOT_LIGHT_SIZE];
 in vec2 tc;
 // for bump map
 in vec3 originalVertexPos;
+// for normal map
+in vec3 varyingSTangent;
 
 out vec4 fragColor;
 
@@ -675,6 +689,19 @@ void main()
         N.y += a * sin(b * originalVertexPos.y);
         N.z += a * sin(b * originalVertexPos.z);
         N = normalize(N);
+    }
+
+    // calculate normal map
+    if (enableNormalMap == 1)
+    {
+        vec3 normal = normalize(varyingNormal);
+        vec3 tangent = normalize(varyingSTangent);
+        tangent = normalize(tangent - dot(tangent, normal) * normal); // ensure tangent is orthogonal to normal
+        vec3 bitangent = cross(tangent, normal);
+        mat3 tbn = mat3(tangent, bitangent, normal);
+        vec3 retrievedNormal = texture(normalMap, tc).xyz;
+        retrievedNormal = retrievedNormal * 2.0 - 1.0; // from RGB space to tangent space ([0.0,1.0] to [-1.0, 1.0])
+        N = normalize(tbn * retrievedNormal); // tangent space to same space with normal
     }
 
     // global ambient
@@ -1850,10 +1877,38 @@ void Renderer::setLightingMode(std::size_t modelIndex, LightingMode mode)
     m_Models[modelIndex].lightingMode = mode;
 }
 
+// enable bump map for model, only for LightingMaterialTexture style
 void Renderer::enableBumpMap(std::size_t modelIndex)
 {
     assert(modelIndex < m_Models.size());
     m_Models[modelIndex].generateBumpMap = true;
+}
+
+// set normal map for model, only for LightingMaterialTexture style
+void Renderer::setNormalMap(std::size_t modelIndex, const char* textureImagePath, bool doMipmapping, bool doAnisotropicFiltering)
+{
+    assert(modelIndex < m_Models.size());
+    setNormalMap(modelIndex, loadTexture(textureImagePath), doMipmapping, doAnisotropicFiltering);
+}
+void Renderer::setNormalMap(std::size_t modelIndex, GLuint textureId, bool doMipmapping, bool doAnisotropicFiltering)
+{
+    assert(modelIndex < m_Models.size());
+    m_Models[modelIndex].enableNormalMap = true;
+    m_Models[modelIndex].normalMap = textureId;
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    if (doMipmapping)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glGenerateMipmap(GL_TEXTURE_2D); // generate mipmapping
+    }
+    if (doAnisotropicFiltering && GLAD_GL_EXT_texture_filter_anisotropic) // check if anisotropic filtering extension is supported ?
+    {
+        GLfloat anisoSetting = 0.0f;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting); // enable anisotropic filtering
+    }
 }
 
 // check whether all data are prepared for model and specific render style
@@ -2337,11 +2392,18 @@ void Renderer::display(float currentTime)
             glBindTexture(GL_TEXTURE_CUBE_MAP, m_SkyBoxTexture);
         }
 
-        // bump map
+        // bump map, normal map
         if (style == LightingMaterialTexture)
         {
             shader.setBool("enableBumpMap", m_Models[i].generateBumpMap);
+            shader.setBool("enableNormalMap", m_Models[i].enableNormalMap);
+            if (m_Models[i].enableNormalMap)
+            {
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, m_Models[i].normalMap);
+            }
         }
+        checkOpenGLError();
 
         glBindVertexArray(m_Models[i].vao);
         if (m_Models[i].spModel->supplyIndices())

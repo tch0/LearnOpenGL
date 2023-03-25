@@ -60,8 +60,6 @@ private:
         glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         // texture
         GLuint texture = 0; // texture id
-        bool doMipmapping = true;
-        bool doAnisotropicFiltering = true;
         float textureWeight = 0.0;
         // material, for LightingMaterialTexture style
         std::unique_ptr<Material> spMaterial = nullptr;
@@ -83,6 +81,9 @@ private:
         GLuint tTanVbo = 0;
         // bump map
         bool generateBumpMap = false;
+        // normal map
+        bool enableNormalMap = false;
+        GLuint normalMap = 0;
     };
     // attributes that every window needs one copy
     // workaround for variables that need to be visited in call back function, they must be static, so save them in static hashtable for every window.
@@ -217,6 +218,9 @@ public:
     void setLightingMode(std::size_t modelIndex, LightingMode mode);
     // enable bump map for model, only for LightingMaterialTexture style
     void enableBumpMap(std::size_t modelIndex);
+    // set normal map for model, only for LightingMaterialTexture style
+    void setNormalMap(std::size_t modelIndex, const char* textureImagePath, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+    void setNormalMap(std::size_t modelIndex, GLuint textureId, bool doMipmapping = true, bool doAnisotropicFiltering = true);
 private:
     void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();
