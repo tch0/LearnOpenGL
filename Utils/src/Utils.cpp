@@ -79,7 +79,7 @@ bool checkOpenGLError(const std::source_location& loc)
 }
 
 // read shader source from file
-std::string readShaderSource(const char* filePath, const std::source_location& loc)
+std::string readShaderSource(const std::string& filePath, const std::source_location& loc)
 {
     std::string content;
     std::ifstream fin(filePath);
@@ -98,124 +98,114 @@ std::string readShaderSource(const char* filePath, const std::source_location& l
     return content;
 }
 
-// create a program from shaders files
-GLuint createShaderProgram(const char* vertexShaderFile, const char* fragmentShaderFile, const std::source_location& loc)
+// create a program from vertex, fragment and geometry shader files
+GLuint createShaderProgram(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader, const std::source_location& loc)
 {
-    std::string vertexShaderStr = readShaderSource(vertexShaderFile, loc);
-    std::string fragShaderStr = readShaderSource(fragmentShaderFile, loc);
-    return createShaderProgramFromSource(vertexShaderStr.c_str(), fragShaderStr.c_str(), loc);
+    std::string vertexShaderStr = readShaderSource(vertexShader, loc);
+    std::string fragmentShaderStr = readShaderSource(fragmentShader, loc);
+    std::string geometryShaderStr;
+    if (!geometryShader.empty())
+    {
+       geometryShaderStr = readShaderSource(geometryShader, loc);
+    }
+    return createShaderProgramFromSource(vertexShaderStr, fragmentShaderStr, geometryShaderStr, loc);
 }
 
-// create a shader program from shader sources
-GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const std::source_location& loc)
+// create a program from vertex, tessellation, fragment and geometry shader files
+GLuint createShaderProgram(const std::string& vertexShader, const std::string& tessellationCtrlShader, const std::string& tessellationEvalShader,
+                           const std::string& fragmentShader, const std::string& geometryShader,
+                           const std::source_location& loc)
 {
-    // create empty shader object
-    GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
-    
-    // load glsl source to shader object
-    glShaderSource(vShader, 1, &vertexShader, NULL);
-    glShaderSource(fShader, 1, &fragmentShader, NULL);
+    std::string vertexShaderStr = readShaderSource(vertexShader, loc);
+    std::string tessellationCtrlShaderStr = readShaderSource(tessellationCtrlShader, loc);
+    std::string tessellationEvalShaderStr = readShaderSource(tessellationEvalShader, loc);
+    std::string fragmentShaderStr = readShaderSource(fragmentShader, loc);
+    std::string geometryShaderStr;
+    if (!geometryShader.empty())
+    {
+        geometryShaderStr = readShaderSource(geometryShader, loc);
+    }
+    return createShaderProgramFromSource(vertexShaderStr, tessellationCtrlShaderStr, tessellationEvalShaderStr, fragmentShaderStr, geometryShaderStr, loc);
+}
 
-    // compiler shader obejct
-    glCompileShader(vShader);
+// create and compile a shader of a specific type
+GLuint createAndCompileShader(const std::string& shaderSource, GLenum shaderType, const std::string& promptStr,
+                              const std::source_location& loc)
+{
+    GLuint shader = glCreateShader(shaderType);
+    const char* shaderSourceStr = shaderSource.c_str();
+    glShaderSource(shader, 1, &shaderSourceStr, NULL);
+    // compile shader
+    glCompileShader(shader);
     checkOpenGLError();
-    GLint vertCompiled = GL_FALSE;
-    glGetShaderiv(vShader, GL_COMPILE_STATUS, &vertCompiled);
-    if (vertCompiled != GL_TRUE)
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (compiled != GL_TRUE)
     {
-        Logger::globalLogger().warning("Vertex shader compilation failed!", loc);
-        printShaderLog(vShader, loc);
+        Logger::globalLogger().warning(std::format("{} shader compilation failed!", promptStr), loc);
+        printShaderLog(shader, loc);
     }
-    glCompileShader(fShader);
-    checkOpenGLError();
-    GLint fragCompiled = GL_FALSE;
-    glGetShaderiv(fShader, GL_COMPILE_STATUS, &fragCompiled);
-    if (fragCompiled != GL_TRUE)
-    {
-        Logger::globalLogger().warning("Fragment shader compilation failed!", loc);
-        printShaderLog(fShader, loc);
-    }
+    return shader;
+}
+
+// create shader program from vertex, fragment, geometry shader sources
+GLuint createShaderProgramFromSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader,
+                                     const std::source_location& loc)
+{
+    return createShaderProgramFromSource(vertexShader, "", "", fragmentShader, geometryShader, loc);
+}
+
+// create shader program from vertex, tessellation, fragment, geometry shader sources
+GLuint createShaderProgramFromSource(const std::string& vertexShader, const std::string& tessellationCtrlShader, const std::string& tessellationEvalShader,
+                                     const std::string& fragmentShader, const std::string& geometryShader,
+                                     const std::source_location& loc)
+{
+    // vertex and fragment shader
+    GLuint vShader = createAndCompileShader(vertexShader, GL_VERTEX_SHADER, "Vertex", loc);
+    GLuint fShader = createAndCompileShader(fragmentShader, GL_FRAGMENT_SHADER, "Fragment", loc);
     
-    // create program, attach shaders to program (in GPU)
-    GLuint vfProgram = glCreateProgram();
-    glAttachShader(vfProgram, vShader);
-    glAttachShader(vfProgram, fShader);
-    glLinkProgram(vfProgram);
+    // create program
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vShader);
+    glAttachShader(shaderProgram, fShader);
+
+    // tessellation control shader
+    if (!tessellationCtrlShader.empty())
+    {
+        GLuint tCShader = createAndCompileShader(tessellationCtrlShader, GL_TESS_CONTROL_SHADER, "Tessellation control", loc);
+        glAttachShader(shaderProgram, tCShader);
+    }
+    // tessellation evaluation shader
+    if (!tessellationEvalShader.empty())
+    {
+        GLuint tEShader = createAndCompileShader(tessellationEvalShader, GL_TESS_EVALUATION_SHADER, "Tessellation evaluation", loc);
+        glAttachShader(shaderProgram, tEShader);
+    }
+    // geometry shader
+    if (!geometryShader.empty())
+    {
+        GLuint gShader = createAndCompileShader(geometryShader, GL_GEOMETRY_SHADER, "Geometry", loc);
+        glAttachShader(shaderProgram, gShader);
+    }
+
+    // link shader program
+    glLinkProgram(shaderProgram);
     checkOpenGLError();
     GLint linkStatus = GL_FALSE;
-    glGetProgramiv(vfProgram, GL_LINK_STATUS, &linkStatus);
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &linkStatus);
     if (linkStatus != GL_TRUE)
     {
         Logger::globalLogger().warning("Shader program linking failed!", loc);
-        printProgramLog(vfProgram, loc);
+        printProgramLog(shaderProgram, loc);
     }
-    return vfProgram;
-}
-
-GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const char* geometryShader, const std::source_location& loc)
-{
-    // create empty shader object
-    GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
-    GLuint gShader = glCreateShader(GL_GEOMETRY_SHADER);
-    
-    // load glsl source to shader object
-    glShaderSource(vShader, 1, &vertexShader, NULL);
-    glShaderSource(fShader, 1, &fragmentShader, NULL);
-    glShaderSource(gShader, 1, &geometryShader, NULL);
-
-    // compiler shader obejct
-    glCompileShader(vShader);
-    checkOpenGLError();
-    GLint vertCompiled = GL_FALSE;
-    glGetShaderiv(vShader, GL_COMPILE_STATUS, &vertCompiled);
-    if (vertCompiled != GL_TRUE)
-    {
-        Logger::globalLogger().warning("Vertex shader compilation failed!", loc);
-        printShaderLog(vShader, loc);
-    }
-    glCompileShader(fShader);
-    checkOpenGLError();
-    GLint fragCompiled = GL_FALSE;
-    glGetShaderiv(fShader, GL_COMPILE_STATUS, &fragCompiled);
-    if (fragCompiled != GL_TRUE)
-    {
-        Logger::globalLogger().warning("Fragment shader compilation failed!", loc);
-        printShaderLog(fShader, loc);
-    }
-    glCompileShader(gShader);
-    checkOpenGLError();
-    GLint geometryCompiled = GL_FALSE;
-    glGetShaderiv(gShader, GL_COMPILE_STATUS, &geometryCompiled);
-    if (geometryCompiled != GL_TRUE)
-    {
-        Logger::globalLogger().warning("Geometry shader compilation failed!", loc);
-        printShaderLog(gShader, loc);
-    }
-    
-    // create program, attach shaders to program (in GPU)
-    GLuint vfProgram = glCreateProgram();
-    glAttachShader(vfProgram, vShader);
-    glAttachShader(vfProgram, fShader);
-    glAttachShader(vfProgram, gShader);
-    glLinkProgram(vfProgram);
-    checkOpenGLError();
-    GLint linkStatus = GL_FALSE;
-    glGetProgramiv(vfProgram, GL_LINK_STATUS, &linkStatus);
-    if (linkStatus != GL_TRUE)
-    {
-        Logger::globalLogger().warning("Shader program linking failed!", loc);
-        printProgramLog(vfProgram, loc);
-    }
-    return vfProgram;
+    return shaderProgram;
 }
 
 // load texture to OpenGL texture object
-GLuint loadTexture(const char* textureImagePath, const std::source_location& loc)
+GLuint loadTexture(const std::string& textureImagePath, const std::source_location& loc)
 {
     GLuint textureId;
-    textureId = SOIL_load_OGL_texture(textureImagePath, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+    textureId = SOIL_load_OGL_texture(textureImagePath.c_str(), SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
     if (textureId == 0)
     {
         Logger::globalLogger().warning(std::format("Could not find texture file {}!", textureImagePath), loc);
@@ -224,15 +214,15 @@ GLuint loadTexture(const char* textureImagePath, const std::source_location& loc
 }
 
 // load cube map texture to OpenGL texture object
-GLuint loadCubeMap(const char* rightImage, const char* leftImage,
-                   const char* topImage, const char* bottomImage,
-                   const char* frontImage, const char* backImage,
+GLuint loadCubeMap(const std::string& rightImage, const std::string& leftImage,
+                   const std::string& topImage, const std::string& bottomImage,
+                   const std::string& frontImage, const std::string& backImage,
                    const std::source_location& loc)
 {
     GLuint textureId;
-    textureId = SOIL_load_OGL_cubemap(rightImage, leftImage,
-                                      topImage, bottomImage,
-                                      frontImage, backImage,
+    textureId = SOIL_load_OGL_cubemap(rightImage.c_str(), leftImage.c_str(),
+                                      topImage.c_str(), bottomImage.c_str(),
+                                      frontImage.c_str(), backImage.c_str(),
                                       SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, 0);
     if (textureId == 0)
     {

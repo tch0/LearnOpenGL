@@ -1417,7 +1417,7 @@ Renderer::Renderer(const char* windowTitle, int width, int height, float axisLen
         {
             float aspect = float(newWidth) / float(newHeight);
             glViewport(0, 0, newWidth, newHeight); // set the screen area associated with the frame buffer (aka the view port).
-            getProjMatrix(pWindow) = glm::perspective(glm::pi<float>() / 2.0f, aspect, 0.1f, 1000.0f);
+            getProjMatrix(pWindow) = glm::perspective(glm::pi<float>() / 3.0f, aspect, 0.1f, 1000.0f);
         }
     };
     glfwSetWindowSizeCallback(m_pWindow, calculatePerspectiveMatrix);
@@ -1505,45 +1505,63 @@ void Renderer::run()
     
     // create shadow frame buffers
     std::size_t shadowSize = m_DirectionalLights.size() + m_PointLights.size() + m_SpotLights.size();
-    m_ShadowBuffers.resize(shadowSize);
-    m_ShadowTextures.resize(shadowSize);
-    m_ShadowVPs.resize(shadowSize);
-    int width = 0, height = 0;
-    glfwGetFramebufferSize(m_pWindow, &width, &height);
-    glGenFramebuffers(GLsizei(shadowSize), m_ShadowBuffers.data()); // generate user-defined frame buffer
-    glGenTextures(GLsizei(shadowSize), m_ShadowTextures.data());
-    for (std::size_t i = 0; i < shadowSize; i++)
+    if (shadowSize > 0)
     {
-        glBindTexture(GL_TEXTURE_2D, m_ShadowTextures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glm::vec4 borderColor(1.0f, 1.0f, 1.0f, 1.0f); // no shadow for texels outside the shadow texture.
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, glm::value_ptr(borderColor));
-        // attach depth texture as frame buffer's depth buffer
-        glBindFramebuffer(GL_FRAMEBUFFER, m_ShadowBuffers[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_ShadowTextures[i], 0);
-        glDrawBuffer(GL_NONE);
-        glReadBuffer(GL_NONE);
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (status != GL_FRAMEBUFFER_COMPLETE)
+        m_ShadowBuffers.resize(shadowSize);
+        m_ShadowTextures.resize(shadowSize);
+        m_ShadowVPs.resize(shadowSize);
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(m_pWindow, &width, &height);
+        glGenFramebuffers(GLsizei(shadowSize), m_ShadowBuffers.data()); // generate user-defined frame buffer
+        glGenTextures(GLsizei(shadowSize), m_ShadowTextures.data());
+        for (std::size_t i = 0; i < shadowSize; i++)
         {
-            Logger::globalLogger().warning(std::format("Shadow texture frame buffer status error: {}", status));
+            glBindTexture(GL_TEXTURE_2D, m_ShadowTextures[i]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+            glm::vec4 borderColor(1.0f, 1.0f, 1.0f, 1.0f); // no shadow for texels outside the shadow texture.
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, glm::value_ptr(borderColor));
+            // attach depth texture as frame buffer's depth buffer
+            glBindFramebuffer(GL_FRAMEBUFFER, m_ShadowBuffers[i]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_ShadowTextures[i], 0);
+            glDrawBuffer(GL_NONE);
+            glReadBuffer(GL_NONE);
+            GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (status != GL_FRAMEBUFFER_COMPLETE)
+            {
+                Logger::globalLogger().warning(std::format("Shadow texture frame buffer status error: {}", status));
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        checkOpenGLError();
     }
-    checkOpenGLError();
 
     // render loop
     while (!glfwWindowShouldClose(m_pWindow))
     {
         updateViewArgsAccordingToCursorPos();
-        display(float(glfwGetTime()));
+        if (m_bDisplayCallbackSet)
+        {
+            m_DisplayCallback(m_pWindow, float(glfwGetTime()));
+        }
+        else
+        {
+            display(float(glfwGetTime()));
+        }
         glfwSwapBuffers(m_pWindow);
         glfwPollEvents();
     }
+}
+
+// replace built-in display function, use user-defined display function, for customizing rendering
+// the call back is called in form of: func(pWindow, currentTime);
+void Renderer::setDisplayCallback(std::function<void(GLFWwindow*, float)> func)
+{
+    m_bDisplayCallbackSet = true;
+    m_DisplayCallback = func;
 }
 
 // add model to render, return it's index

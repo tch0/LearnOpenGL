@@ -16,12 +16,18 @@ public:
     Shader();
     Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "",
            const std::source_location& loc = std::source_location::current());
+    Shader(const std::string& vertexShader, const std::string tessellationCtrlShader, const std::string& tessellationEvalShader,
+           const std::string& fragmentShader, const std::string& geometryShader = "",
+           const std::source_location& loc = std::source_location::current());
     Shader(const Shader& shader);
     Shader& operator=(const Shader& shader);
     void setShaderSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "",
                          const std::source_location& loc = std::source_location::current());
-    GLuint getShaderId();
-    void use();
+    void setShaderSource(const std::string& vertexShader, const std::string tessellationCtrlShader, const std::string& tessellationEvalShader,
+                         const std::string& fragmentShader, const std::string& geometryShader = "",
+                         const std::source_location& loc = std::source_location::current());
+    GLuint getShaderId() const;
+    void use() const;
     void setBool(const std::string& name, bool value) const;
     void setInt(const std::string& name, GLint value) const;
     void setUint(const std::string& name, GLuint value) const;

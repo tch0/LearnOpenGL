@@ -15,22 +15,34 @@ void printProgramLog(GLuint program, const std::source_location& loc = std::sour
 bool checkOpenGLError(const std::source_location& loc = std::source_location::current());
 
 // read shader source from file
-std::string readShaderSource(const char* filePath, const std::source_location& loc = std::source_location::current());
+std::string readShaderSource(const std::string& filePath, const std::source_location& loc = std::source_location::current());
 
-// create a program from vertex shader and fragment shader
-GLuint createShaderProgram(const char* vertexShader, const char* fragmentShader, const std::source_location& loc = std::source_location::current());
+// create a program from vertex, fragment and geometry shader files
+GLuint createShaderProgram(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "",
+                           const std::source_location& loc = std::source_location::current());
+// create a program from vertex, tessellation, fragment and geometry shader files
+GLuint createShaderProgram(const std::string& vertexShader, const std::string& tessellationCtrlShader, const std::string& tessellationEvalShader,
+                           const std::string& fragmentShader, const std::string& geometryShader = "",
+                           const std::source_location& loc = std::source_location::current());
 
-// create shader program from vertex shader and fragment shader sources
-GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const std::source_location& loc = std::source_location::current());
-GLuint createShaderProgramFromSource(const char* vertexShader, const char* fragmentShader, const char* geometryShader, const std::source_location& loc = std::source_location::current());
+// create and compile a shader of a specific type
+GLuint createAndCompileShader(const std::string& shaderSource, GLenum shaderType, const std::string& promptStr,
+                              const std::source_location& loc = std::source_location::current());
+// create shader program from vertex, fragment, geometry shader sources
+GLuint createShaderProgramFromSource(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader = "",
+                                     const std::source_location& loc = std::source_location::current());
+// create shader program from vertex, tessellation, fragment, geometry shader sources
+GLuint createShaderProgramFromSource(const std::string& vertexShader, const std::string& tessellationCtrlShader, const std::string& tessellationEvalShader,
+                                     const std::string& fragmentShader, const std::string& geometryShader = "",
+                                     const std::source_location& loc = std::source_location::current());
 
 // load texture to OpenGL texture object
-GLuint loadTexture(const char* textureImagePath, const std::source_location& loc = std::source_location::current());
+GLuint loadTexture(const std::string& textureImagePath, const std::source_location& loc = std::source_location::current());
 
 // load cube map texture to OpenGL texture object
-GLuint loadCubeMap(const char* rightImage, const char* leftImage,
-                   const char* topImage, const char* bottomImage,
-                   const char* frontImage, const char* backImage,
+GLuint loadCubeMap(const std::string& rightImage, const std::string& leftImage,
+                   const std::string& topImage, const std::string& bottomImage,
+                   const std::string& frontImage, const std::string& backImage,
                    const std::source_location& loc = std::source_location::current());
 
 } // namespace Utils

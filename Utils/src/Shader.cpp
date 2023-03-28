@@ -10,15 +10,15 @@ Shader::Shader() : m_Id(0)
 }
 Shader::Shader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader, const std::source_location& loc)
 {
-    if (geometryShader.empty())
-    {
-        m_Id = createShaderProgramFromSource(vertexShader.c_str(), fragmentShader.c_str(), loc);
-    }
-    else
-    {
-        m_Id = createShaderProgramFromSource(vertexShader.c_str(), fragmentShader.c_str(), geometryShader.c_str(), loc);
-    }
+    m_Id = createShaderProgramFromSource(vertexShader, fragmentShader, geometryShader, loc);
 }
+Shader::Shader(const std::string& vertexShader, const std::string tessellationCtrlShader, const std::string& tessellationEvalShader,
+               const std::string& fragmentShader, const std::string& geometryShader,
+               const std::source_location& loc)
+{
+    m_Id = createShaderProgramFromSource(vertexShader, tessellationCtrlShader, tessellationEvalShader, fragmentShader, geometryShader, loc);
+}
+
 Shader::Shader(const Shader& shader) : m_Id(shader.m_Id)
 {
 }
@@ -31,14 +31,23 @@ void Shader::setShaderSource(const std::string& vertexShader, const std::string&
 {
     *this = Shader(vertexShader, fragmentShader, geometryShader, loc);
 }
-GLuint Shader::getShaderId()
+void Shader::setShaderSource(const std::string& vertexShader, const std::string tessellationCtrlShader, const std::string& tessellationEvalShader,
+                     const std::string& fragmentShader, const std::string& geometryShader,
+                     const std::source_location& loc)
+{
+    *this = Shader(vertexShader, tessellationCtrlShader, tessellationEvalShader, fragmentShader, geometryShader, loc);
+}
+
+GLuint Shader::getShaderId() const
 {
     return m_Id;
 }
-void Shader::use()
+
+void Shader::use() const
 {
     glUseProgram(m_Id);
 }
+
 void Shader::setBool(const std::string& name, bool value) const
 {
     glUniform1i(glGetUniformLocation(m_Id, name.c_str()), GLint(value));

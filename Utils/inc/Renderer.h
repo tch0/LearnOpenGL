@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <functional>
 #include "Material.h"
 #include "Model.h"
 #include "Logger.h"
@@ -107,6 +108,7 @@ private:
         int m_LastCursorPosY = 0;
     };
     inline static std::unordered_map<GLFWwindow*, WindowAttributes> s_WindowAttrs;
+public:
     // get window attributes of this window, all inline
     static glm::vec3& getEyeLocation(GLFWwindow* w) { return s_WindowAttrs[w].m_EyeLocation; }
     static glm::vec3& getObjectLocation(GLFWwindow* w) { return s_WindowAttrs[w].m_ObjectLocation; }
@@ -175,12 +177,19 @@ private:
     bool m_bEanbleSkyBox = false;
     GLuint m_SkyBoxTexture = 0;
     GLsizei m_SkyBoxVerticesCount = 0;
+    // display call back
+    bool m_bDisplayCallbackSet = false;
+    std::function<void(GLFWwindow*, float)> m_DisplayCallback;
 public:
     Renderer(const char* windowTitle, int width = 1920, int height = 1080, float axisLength = 100.0f);
     ~Renderer();
 
     // run the render loop
     void run();
+
+    // replace built-in display function, use user-defined display function, for customizing rendering
+    // the call back is called in form of: func(pWindow, currentTime);
+    void setDisplayCallback(std::function<void(GLFWwindow*, float)> func);
     
     // add model to render, return it's index
     std::size_t addModel(std::shared_ptr<Model> spModel, RenderStyle renderStyle);
@@ -228,10 +237,11 @@ public:
     // set height map for model, only for LightingMaterialTexture style
     void setHeightMap(std::size_t modelIndex, const char* textureImagePath, float heightFactor = 10.0f, bool doMipmapping = true, bool doAnisotropicFiltering = true);
     void setHeightMap(std::size_t modelIndex, GLuint textureId, float heightFactor = 10.0f, bool doMipmapping = true, bool doAnisotropicFiltering = true);
+
+    void drawAxises();
 private:
     void checkForModelAttributes();
     void updateViewArgsAccordingToCursorPos();
-    void drawAxises();
     void drawShadowTextures(float currentTime);
     void drawSkyBox();
     void display(float currentTime);
